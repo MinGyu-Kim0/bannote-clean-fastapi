@@ -17,7 +17,7 @@ class Student(BaseModel):
 
 # 청소 구역
 class Area(BaseModel):
-    zone_id: int
+    area_id: int
     name: str
     target_grades: List[int]
 
@@ -33,7 +33,7 @@ class Assignment(BaseModel):
     assignment_id: int
     schedule_id: int
     student_id: str
-    zone_id: int
+    area_id: int
     status: str = "배정"
 
 
