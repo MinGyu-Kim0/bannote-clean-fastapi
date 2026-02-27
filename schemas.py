@@ -1,5 +1,4 @@
 from pydantic import BaseModel
-from typing import List, Optional
 from datetime import date
 
 
@@ -18,18 +17,18 @@ class Student(BaseModel):
 
 # 학생 정보 수정
 class StudentUpdate(BaseModel):
-    student_id: Optional[str] = None
-    name: Optional[str] = None
-    grade: Optional[int] = None
-    status: Optional[str] = None
-    role: Optional[str] = None
+    student_id: str | None = None
+    name: str | None = None
+    grade: int | None = None
+    status: str | None = None
+    role: str | None = None
 
 
 # 청소 구역
 class Area(BaseModel):
     area_id: int
     name: str
-    target_grades: List[int]
+    target_grades: list[int]
 
 
 # 스케쥴

@@ -1,5 +1,4 @@
 from schemas import Student, Area, Schedule, Assignment, Trade
-from typing import List
 
 # 학생 데이터
 students_db = [
@@ -47,10 +46,10 @@ areas_db = [
 ]
 
 # 청소 일정
-schedules_db: List[Schedule] = []
+schedules_db: list[Schedule] = []
 
 # 청소 배정
-assignments_db: List[Assignment] = []
+assignments_db: list[Assignment] = []
 
 # 청소 교환
-trades_db: List[Trade] = []
+trades_db: list[Trade] = []
