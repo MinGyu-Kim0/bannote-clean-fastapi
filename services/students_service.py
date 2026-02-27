@@ -39,9 +39,14 @@ def add_student(student_pk: int, student_id: str, name: str, grade: int, status:
         status=status,
         role=role,
     )
+
+    for s in students_db:
+        if s.student_pk == student_pk:
+            raise HTTPException(status_code=400, detail="이미 존재하는 학생입니다.")
+
     for s in students_db:
         if s.student_id == student_id:
-            raise HTTPException(status_code=400, detail="이미 존재하는 학번입니다.")
+            raise HTTPException(status_code=400, detail="이미 존재하는 학생입니다.")
 
     students_db.append(new_student)
 
@@ -55,9 +60,14 @@ def add_student(student_pk: int, student_id: str, name: str, grade: int, status:
 def update_student(student_pk: int, update_data: StudentUpdate):
     student = next((s for s in students_db if s.student_pk == student_pk), None)
     if not student:
-        raise HTTPException(status_code=404, detail=f"PK {student_pk}번 학생을 찾을 수 없습니다.")
+        raise HTTPException(status_code=404, detail="학생을 찾을 수 없습니다.")
 
     update_dict = update_data.model_dump(exclude_unset=True)
+
+    if "student_id" in update_dict:
+        new_id = update_dict["student_id"]
+        if any(s.student_id == new_id and s.student_pk != student_pk for s in students_db):
+            raise HTTPException(status_code=400, detail="해당 정보로 수정할 수 없습니다.")
 
     for key, value in update_dict.items():
         setattr(student, key, value)
