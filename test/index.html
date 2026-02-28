@@ -1,0 +1,278 @@
+<!doctype html>
+<html lang="ko">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>CleanOps Operator Desk</title>
+  <link rel="preconnect" href="https://fonts.googleapis.com">
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+  <link href="https://fonts.googleapis.com/css2?family=Space+Grotesk:wght@500;700&family=Noto+Sans+KR:wght@400;500;700&display=swap" rel="stylesheet">
+  <link rel="stylesheet" href="./styles.css">
+  <script defer src="./app.js"></script>
+</head>
+<body>
+  <div class="aurora a1" aria-hidden="true"></div>
+  <div class="aurora a2" aria-hidden="true"></div>
+
+  <header class="top">
+    <div class="brand">
+      <p class="badge-text">Facility Operations</p>
+      <h1>CleanOps Operator Desk</h1>
+      <p class="sub">테스트 툴이 아니라, 실제 운영자가 쓰듯이 일정 생성부터 교환 승인까지 한 화면에서 처리합니다.</p>
+    </div>
+
+    <section class="connect-card">
+      <p class="connect-title">API 연결</p>
+      <label for="baseUrl">Base URL</label>
+      <div class="connect-row">
+        <input id="baseUrl" type="text" placeholder="http://127.0.0.1:8000">
+        <button id="applyBaseUrl" type="button">적용</button>
+      </div>
+      <div class="connect-actions">
+        <button id="healthBtn" type="button">헬스체크</button>
+        <button id="refreshAllBtn" type="button">전체 동기화</button>
+      </div>
+      <p id="serverState" class="server-state">연결 대기</p>
+    </section>
+  </header>
+
+  <section class="kpi-grid">
+    <article class="kpi">
+      <p>학생</p>
+      <strong id="kpiStudents">0</strong>
+    </article>
+    <article class="kpi">
+      <p>재학</p>
+      <strong id="kpiActiveStudents">0</strong>
+    </article>
+    <article class="kpi">
+      <p>구역</p>
+      <strong id="kpiAreas">0</strong>
+    </article>
+    <article class="kpi">
+      <p>금일 배정 목록</p>
+      <strong id="kpiAssignments">0</strong>
+    </article>
+    <article class="kpi">
+      <p>대기 교환</p>
+      <strong id="kpiPendingTrades">0</strong>
+    </article>
+  </section>
+
+  <main class="console-grid">
+    <section class="boards">
+      <article class="panel">
+        <div class="panel-head">
+          <h2>학생 현황</h2>
+          <button class="ghost-btn" type="button" data-refresh="students">새로고침</button>
+        </div>
+        <div class="table-shell">
+          <table>
+            <thead>
+              <tr>
+                <th>PK</th>
+                <th>학번</th>
+                <th>이름</th>
+                <th>학년</th>
+                <th>상태</th>
+              </tr>
+            </thead>
+            <tbody id="studentsRows"></tbody>
+          </table>
+        </div>
+      </article>
+
+      <article class="panel">
+        <div class="panel-head">
+          <h2>청소 구역</h2>
+          <button class="ghost-btn" type="button" data-refresh="areas">새로고침</button>
+        </div>
+        <div class="table-shell">
+          <table>
+            <thead>
+              <tr>
+                <th>ID</th>
+                <th>구역</th>
+                <th>필요 인원</th>
+                <th>대상 학년</th>
+              </tr>
+            </thead>
+            <tbody id="areasRows"></tbody>
+          </table>
+        </div>
+      </article>
+
+      <article class="panel">
+        <div class="panel-head">
+          <h2>청소 일정</h2>
+          <button class="ghost-btn" type="button" data-refresh="schedules">새로고침</button>
+        </div>
+        <div class="table-shell">
+          <table>
+            <thead>
+              <tr>
+                <th>ID</th>
+                <th>날짜</th>
+              </tr>
+            </thead>
+            <tbody id="schedulesRows"></tbody>
+          </table>
+        </div>
+      </article>
+
+      <article class="panel panel-wide">
+        <div class="panel-head">
+          <h2>배정 현황</h2>
+          <button class="ghost-btn" type="button" data-refresh="assignments">새로고침</button>
+        </div>
+        <div class="table-shell">
+          <table>
+            <thead>
+              <tr>
+                <th>ID</th>
+                <th>일정</th>
+                <th>구역</th>
+                <th>학생</th>
+                <th>상태</th>
+                <th>빠른 선택</th>
+              </tr>
+            </thead>
+            <tbody id="assignmentsRows"></tbody>
+          </table>
+        </div>
+      </article>
+
+      <article class="panel panel-wide">
+        <div class="panel-head">
+          <h2>교환 요청</h2>
+          <button class="ghost-btn" type="button" data-refresh="trades">새로고침</button>
+        </div>
+        <div class="table-shell">
+          <table>
+            <thead>
+              <tr>
+                <th>요청 ID</th>
+                <th>신청 배정</th>
+                <th>대상 배정</th>
+                <th>상태</th>
+                <th>빠른 처리</th>
+              </tr>
+            </thead>
+            <tbody id="tradesRows"></tbody>
+          </table>
+        </div>
+      </article>
+    </section>
+
+    <aside class="flow">
+      <article class="flow-card">
+        <h2>운영 워크플로우</h2>
+        <p class="flow-sub">일정 생성 → 자동 배정 → 상태 처리 → 교환 승인 순서로 운영</p>
+
+        <form id="formCreateSchedule" class="flow-form">
+          <h3>1) 일정 생성</h3>
+          <div class="flow-row">
+            <input name="start_date" type="date" required>
+            <input name="end_date" type="date" required>
+          </div>
+          <button type="submit">기간 일정 생성</button>
+        </form>
+
+        <form id="formAutoAssign" class="flow-form">
+          <h3>2) 자동 배정</h3>
+          <button type="submit">전체 일정 자동 배정</button>
+        </form>
+
+        <form id="formUpdateAssignmentStatus" class="flow-form">
+          <h3>3) 배정 상태 변경</h3>
+          <div class="flow-row">
+            <select id="statusAssignmentId" required></select>
+            <select id="statusValue" required>
+              <option value="">상태 선택</option>
+              <option value="배정">배정</option>
+              <option value="완료">완료</option>
+              <option value="취소">취소</option>
+              <option value="추노">추노</option>
+            </select>
+          </div>
+          <button type="submit">상태 적용</button>
+        </form>
+
+        <form id="formReassignCanceled" class="flow-form">
+          <h3>4) 취소 건 재배정</h3>
+          <div class="flow-row">
+            <select id="reassignAssignmentId" required></select>
+          </div>
+          <button type="submit">재배정 실행</button>
+        </form>
+
+        <form id="formCreateTrade" class="flow-form">
+          <h3>5) 교환 요청 생성</h3>
+          <div class="flow-row">
+            <select id="tradeRequesterId" required></select>
+            <select id="tradeTargetId" required></select>
+          </div>
+          <button type="submit">교환 요청</button>
+        </form>
+
+        <form id="formProcessTrade" class="flow-form">
+          <h3>6) 교환 요청 처리</h3>
+          <div class="flow-row">
+            <select id="tradeRequestId" required></select>
+            <select id="tradeDecision" required>
+              <option value="">처리 상태</option>
+              <option value="수락">수락</option>
+              <option value="거절">거절</option>
+              <option value="취소">취소</option>
+            </select>
+          </div>
+          <button type="submit">요청 처리</button>
+        </form>
+      </article>
+
+      <article class="flow-card">
+        <h2>기초 데이터 등록</h2>
+
+        <form id="formAddStudent" class="flow-form">
+          <h3>학생 등록</h3>
+          <div class="flow-row">
+            <input name="student_pk" type="number" placeholder="PK" required>
+            <input name="student_id" placeholder="학번" required>
+          </div>
+          <div class="flow-row">
+            <input name="name" placeholder="이름" required>
+            <input name="grade" type="number" placeholder="학년" required>
+          </div>
+          <div class="flow-row">
+            <input name="status" placeholder="상태 (기본: 재학)">
+            <input name="role" placeholder="역할 (기본: 학생)">
+          </div>
+          <button type="submit">학생 추가</button>
+        </form>
+
+        <form id="formAddArea" class="flow-form">
+          <h3>구역 등록</h3>
+          <div class="flow-row">
+            <input name="area_id" type="number" placeholder="구역 ID" required>
+            <input name="name" placeholder="구역명" required>
+          </div>
+          <div class="flow-row">
+            <input name="need_peoples" type="number" min="1" placeholder="필요 인원" required>
+            <input name="target_grades" placeholder="대상 학년 (예: 1,2)" required>
+          </div>
+          <button type="submit">구역 추가</button>
+        </form>
+      </article>
+
+      <article class="flow-card">
+        <div class="log-head">
+          <h2>응답 로그</h2>
+          <span id="responseMeta">대기 중</span>
+        </div>
+        <ul id="activityLog" class="activity-log"></ul>
+        <pre id="responseBox">{}</pre>
+      </article>
+    </aside>
+  </main>
+</body>
+</html>
