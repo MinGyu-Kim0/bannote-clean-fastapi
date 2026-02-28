@@ -31,6 +31,12 @@ class Area(BaseModel):
     target_grades: list[int]
 
 
+# 청소 구역 수정
+class AreaUpdate(BaseModel):
+    name: str | None = None
+    target_grades: list[int | None] = None
+
+
 # 스케쥴
 class Schedule(BaseModel):
     schedule_id: int
