@@ -13,8 +13,13 @@ def get_areas():
 
 # 청소 구역 추가 (POST)
 @router.post("/")
-def add_areas(area_id: int, name: str, target_grades: list[int]):
-    return areas_service.add_area(area_id=area_id, name=name, target_grades=target_grades)
+def add_areas(area_id: int, name: str, need_peoples: int, target_grades: list[int]):
+    return areas_service.add_area(
+        area_id=area_id,
+        name=name,
+        need_peoples=need_peoples,
+        target_grades=target_grades,
+    )
 
 
 # 청소 구역 수정 (PATCH)

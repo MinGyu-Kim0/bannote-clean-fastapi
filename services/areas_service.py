@@ -9,9 +9,11 @@ def get_areas():
 
 
 # 청소 구역 추가
-def add_area(area_id: int, name: str, target_grades: list[int]):
+def add_area(area_id: int, name: str, need_peoples: int, target_grades: list[int]):
+    if need_peoples < 1:
+        raise HTTPException(status_code=400, detail="필요 인원수는 1 이상이어야 합니다.")
 
-    new_area = Area(area_id=area_id, name=name, target_grades=target_grades)
+    new_area = Area(area_id=area_id, name=name, need_peoples=need_peoples, target_grades=target_grades)
 
     # db연동 시 삭제할 것(auto increment & PK)
     if any(a.area_id == area_id for a in areas_db):
@@ -36,8 +38,11 @@ def update_area(area_id: int, update_data: AreaUpdate):
 
     if "name" in update_dict:
         new_name = update_dict["name"]
-        if any(a.name == new_name for a in areas_db):
+        if any(a.name == new_name and a.area_id != area_id for a in areas_db):
             raise HTTPException(status_code=400, detail="해당 이름으로 수정할 수 없습니다.")
+
+    if "need_peoples" in update_dict and update_dict["need_peoples"] < 1:
+        raise HTTPException(status_code=400, detail="필요 인원수는 1 이상이어야 합니다.")
 
     for key, value in update_dict.items():
         setattr(area, key, value)
