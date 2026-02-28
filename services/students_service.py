@@ -1,6 +1,6 @@
 from fastapi import HTTPException
 from schemas import Student, StudentUpdate
-from db import students_db
+from db import assignments_db, students_db
 
 
 # 학생 조회(GET)
@@ -62,6 +62,7 @@ def update_student(student_pk: int, update_data: StudentUpdate):
     if not student:
         raise HTTPException(status_code=404, detail="학생을 찾을 수 없습니다.")
 
+    previous_status = student.status
     update_dict = update_data.model_dump(exclude_unset=True)
 
     if "student_id" in update_dict:
@@ -71,7 +72,19 @@ def update_student(student_pk: int, update_data: StudentUpdate):
 
     for key, value in update_dict.items():
         setattr(student, key, value)
-    return {"message": f"학생 정보가 수정되었습니다.", "student": student}
+
+    canceled_assignment_ids: list[int] = []
+    if previous_status != "휴학" and student.status == "휴학":
+        for assignment in assignments_db:
+            if assignment.student_pk == student_pk and assignment.status in {"배정", "추노"}:
+                assignment.status = "취소"
+                canceled_assignment_ids.append(assignment.assignment_id)
+
+    return {
+        "message": "학생 정보가 수정되었습니다.",
+        "student": student,
+        "canceled_assignments": canceled_assignment_ids,
+    }
 
 
 # 학생 삭제(DELETE)
