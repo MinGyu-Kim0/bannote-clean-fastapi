@@ -39,10 +39,10 @@ students_db = [
 
 # 청소 구역
 areas_db = [
-    Area(area_id="1", name="405호", target_grades=[1]),
-    Area(area_id="2", name="304호", target_grades=[2]),
-    Area(area_id="3", name="301호", target_grades=[3]),
-    Area(area_id="4", name="가습기", target_grades=[3]),
+    Area(area_id=1, name="405호", target_grades=[1]),
+    Area(area_id=2, name="304호", target_grades=[2]),
+    Area(area_id=3, name="301호", target_grades=[3]),
+    Area(area_id=4, name="가습기", target_grades=[3]),
 ]
 
 # 청소 일정
