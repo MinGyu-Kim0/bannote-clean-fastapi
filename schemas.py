@@ -1,5 +1,7 @@
-from pydantic import BaseModel
 from datetime import date
+from typing import Literal
+
+from pydantic import BaseModel
 
 
 # --------pydantic 모델 정의--------
@@ -28,13 +30,15 @@ class StudentUpdate(BaseModel):
 class Area(BaseModel):
     area_id: int
     name: str
+    need_peoples: int
     target_grades: list[int]
 
 
 # 청소 구역 수정
 class AreaUpdate(BaseModel):
     name: str | None = None
-    target_grades: list[int | None] = None
+    need_peoples: int | None = None
+    target_grades: list[int] | None = None
 
 
 # 스케쥴
@@ -57,4 +61,13 @@ class Trade(BaseModel):
     request_id: int
     requester_assignment_id: int
     target_assignment_id: int
-    status: str = "대기"
+    status: Literal["대기", "수락", "거절", "취소"] = "대기"
+
+
+class TradeCreate(BaseModel):
+    requester_assignment_id: int
+    target_assignment_id: int
+
+
+class TradeUpdate(BaseModel):
+    status: Literal["수락", "거절", "취소"]
