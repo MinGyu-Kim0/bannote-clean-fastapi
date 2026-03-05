@@ -125,6 +125,17 @@
           <h2>배정 현황</h2>
           <button class="ghost-btn" type="button" data-refresh="assignments">새로고침</button>
         </div>
+        <form id="formSearchAssignments" class="assignment-search">
+          <div class="assignment-search-row">
+            <input id="assignmentFilterStudentId" type="text" placeholder="학번으로 조회">
+            <input id="assignmentFilterName" type="text" placeholder="이름으로 조회">
+          </div>
+          <div class="assignment-search-actions">
+            <button type="submit">조회</button>
+            <button id="resetAssignmentsFilter" type="button" class="ghost-btn">초기화</button>
+            <span id="assignmentFilterMeta">전체 조회</span>
+          </div>
+        </form>
         <div class="table-shell">
           <table>
             <thead>

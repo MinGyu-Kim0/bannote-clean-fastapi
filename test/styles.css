@@ -243,6 +243,37 @@ button:active {
   font-size: 1.05rem;
 }
 
+.assignment-search {
+  margin-bottom: 8px;
+  padding: 8px;
+  border: 1px solid #e3d8c5;
+  border-radius: 10px;
+  background: #fff8ed;
+}
+
+.assignment-search-row {
+  display: flex;
+  gap: 8px;
+  flex-wrap: wrap;
+}
+
+.assignment-search-row input {
+  flex: 1 1 180px;
+}
+
+.assignment-search-actions {
+  margin-top: 8px;
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  flex-wrap: wrap;
+}
+
+#assignmentFilterMeta {
+  color: var(--muted);
+  font-size: 0.82rem;
+}
+
 .ghost-btn {
   border-color: #bfb29f;
   background: #fff7ec;

@@ -16,6 +16,11 @@ const elements = {
   kpiAreas: $("#kpiAreas"),
   kpiAssignments: $("#kpiAssignments"),
   kpiPendingTrades: $("#kpiPendingTrades"),
+  formSearchAssignments: $("#formSearchAssignments"),
+  assignmentFilterStudentId: $("#assignmentFilterStudentId"),
+  assignmentFilterName: $("#assignmentFilterName"),
+  resetAssignmentsFilter: $("#resetAssignmentsFilter"),
+  assignmentFilterMeta: $("#assignmentFilterMeta"),
   statusAssignmentId: $("#statusAssignmentId"),
   reassignAssignmentId: $("#reassignAssignmentId"),
   tradeRequesterId: $("#tradeRequesterId"),
@@ -30,6 +35,11 @@ const state = {
   areas: [],
   schedules: [],
   assignments: [],
+  assignmentsView: [],
+  assignmentFilter: {
+    studentId: "",
+    name: "",
+  },
   trades: [],
 };
 
@@ -282,15 +292,19 @@ function renderSchedules() {
 }
 
 function renderAssignments() {
-  if (!state.assignments.length) {
+  const assignments = state.assignmentsView;
+  if (!assignments.length) {
     elements.assignmentsRows.innerHTML = `<tr><td colspan="6">데이터 없음</td></tr>`;
+    if (elements.assignmentFilterMeta) {
+      elements.assignmentFilterMeta.textContent = `조회 ${state.assignmentsView.length}건 / 전체 ${state.assignments.length}건`;
+    }
     return;
   }
 
   const studentsMap = new Map(state.students.map((student) => [student.student_pk, student]));
   const areasMap = new Map(state.areas.map((area) => [area.area_id, area]));
 
-  elements.assignmentsRows.innerHTML = state.assignments
+  elements.assignmentsRows.innerHTML = assignments
     .map((assignment) => {
       const student = studentsMap.get(assignment.student_pk);
       const area = areasMap.get(assignment.area_id);
@@ -315,6 +329,10 @@ function renderAssignments() {
       `;
     })
     .join("");
+
+  if (elements.assignmentFilterMeta) {
+    elements.assignmentFilterMeta.textContent = `조회 ${state.assignmentsView.length}건 / 전체 ${state.assignments.length}건`;
+  }
 }
 
 function renderTrades() {
@@ -413,6 +431,7 @@ function renderKpis() {
 }
 
 function renderAll() {
+  applyAssignmentFilter();
   renderStudents();
   renderAreas();
   renderSchedules();
@@ -420,6 +439,31 @@ function renderAll() {
   renderTrades();
   syncSelectors();
   renderKpis();
+}
+
+function applyAssignmentFilter() {
+  const normalizedStudentId = cleanText(state.assignmentFilter.studentId);
+  const normalizedName = cleanText(state.assignmentFilter.name);
+
+  elements.assignmentFilterStudentId.value = normalizedStudentId;
+  elements.assignmentFilterName.value = normalizedName;
+
+  if (!normalizedStudentId && !normalizedName) {
+    state.assignmentsView = [...state.assignments];
+    return;
+  }
+
+  const matchedStudentPks = new Set(
+    state.students
+      .filter((student) => {
+        const byStudentId = !normalizedStudentId || cleanText(student.student_id).includes(normalizedStudentId);
+        const byName = !normalizedName || cleanText(student.name).includes(normalizedName);
+        return byStudentId && byName;
+      })
+      .map((student) => student.student_pk),
+  );
+
+  state.assignmentsView = state.assignments.filter((assignment) => matchedStudentPks.has(assignment.student_pk));
 }
 
 async function refreshEntity(entity, { silent = true, render = true } = {}) {
@@ -547,6 +591,23 @@ function bindQuickActions() {
 }
 
 function bindForms() {
+  elements.formSearchAssignments.addEventListener("submit", async (event) => {
+    event.preventDefault();
+    await guardForm("배정표 조회", async () => {
+      state.assignmentFilter.studentId = cleanText(elements.assignmentFilterStudentId.value);
+      state.assignmentFilter.name = cleanText(elements.assignmentFilterName.value);
+      await refreshEntity("assignments", { silent: false });
+    });
+  });
+
+  elements.resetAssignmentsFilter.addEventListener("click", async () => {
+    await guardForm("배정표 조회 초기화", async () => {
+      state.assignmentFilter.studentId = "";
+      state.assignmentFilter.name = "";
+      await refreshEntity("assignments", { silent: false });
+    });
+  });
+
   $("#formCreateSchedule").addEventListener("submit", async (event) => {
     event.preventDefault();
     await guardForm("일정 생성", async () => {
