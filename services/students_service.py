@@ -10,7 +10,7 @@ def get_students(student_id: str = None, grade: int = None, name: str = None):
     if student_id:
         matched = [s for s in students_db if s.student_id == student_id]
         if not matched:
-            raise HTTPException(status_code=404, detail=f"존재하지 않는 학번입니다.")
+            raise HTTPException(status_code=404, detail="존재하지 않는 학번입니다.")
         return matched
 
     # 이름으로 조회
@@ -96,4 +96,4 @@ def delete_student(student_pk: int):
     else:
         students_db.remove(student)
 
-    return {"message": f"삭제되었습니다."}
+    return {"message": "삭제되었습니다."}
