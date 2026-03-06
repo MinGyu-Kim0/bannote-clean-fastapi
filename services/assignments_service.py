@@ -6,18 +6,63 @@ from db import areas_db, assignments_db, schedules_db, students_db
 from schemas import Assignment
 
 ALLOWED_STATUSES = {"배정", "완료", "취소", "추노"}
+EXCLUDED_COUNT_STATUSES = {"취소", "추노"}
 
 
 def _get_cleaning_count(student_pk: int) -> int:
-    # 취소된 내역은 청소 횟수에서 제외
-    return sum(1 for assignment in assignments_db if assignment.student_pk == student_pk and assignment.status != "취소")
+    # 취소/추노 내역은 청소 횟수에서 제외
+    return sum(
+        1
+        for assignment in assignments_db
+        if assignment.student_pk == student_pk and assignment.status not in EXCLUDED_COUNT_STATUSES
+    )
+
+
+def _get_runaway_count(student_pk: int) -> int:
+    return sum(1 for assignment in assignments_db if assignment.student_pk == student_pk and assignment.status == "추노")
+
+
+def _get_penalty_count(student_pk: int) -> int:
+    return sum(
+        1
+        for assignment in assignments_db
+        if assignment.student_pk == student_pk and assignment.status in EXCLUDED_COUNT_STATUSES
+    )
+
+
+def _pick_reassign_student(candidates):
+    # 취소/추노 이력이 있는 학생이 있으면 우선, 없으면 전체 후보에서 랜덤 재배정
+    metrics = [
+        {
+            "student": student,
+            "penalty_count": _get_penalty_count(student.student_pk),
+            "runaway_count": _get_runaway_count(student.student_pk),
+            "cleaning_count": _get_cleaning_count(student.student_pk),
+        }
+        for student in candidates
+    ]
+
+    prioritized = [metric for metric in metrics if metric["penalty_count"] > 0]
+    if not prioritized:
+        return random.choice(candidates)
+
+    max_runaway_count = max(metric["runaway_count"] for metric in prioritized)
+    runaway_top = [metric for metric in prioritized if metric["runaway_count"] == max_runaway_count]
+
+    max_penalty_count = max(metric["penalty_count"] for metric in runaway_top)
+    penalty_top = [metric for metric in runaway_top if metric["penalty_count"] == max_penalty_count]
+
+    min_cleaning_count = min(metric["cleaning_count"] for metric in penalty_top)
+    least_loaded = [metric for metric in penalty_top if metric["cleaning_count"] == min_cleaning_count]
+
+    return random.choice(least_loaded)["student"]
 
 
 def _build_fairness_counts() -> dict[int, int]:
-    # 재학생 기준으로 현재까지 배정 횟수(취소 제외)를 집계
+    # 재학생 기준으로 현재까지 배정 횟수(취소/추노 제외)를 집계
     fairness_counts = {student.student_pk: 0 for student in students_db if student.status == "재학"}
     for assignment in assignments_db:
-        if assignment.status == "취소":
+        if assignment.status in EXCLUDED_COUNT_STATUSES:
             continue
         if assignment.student_pk in fairness_counts:
             fairness_counts[assignment.student_pk] += 1
@@ -26,9 +71,7 @@ def _build_fairness_counts() -> dict[int, int]:
 
 def _pick_fair_random_student(candidates, fairness_counts: dict[int, int]):
     min_count = min(fairness_counts.get(student.student_pk, 0) for student in candidates)
-    least_loaded_candidates = [
-        student for student in candidates if fairness_counts.get(student.student_pk, 0) == min_count
-    ]
+    least_loaded_candidates = [student for student in candidates if fairness_counts.get(student.student_pk, 0) == min_count]
     return random.choice(least_loaded_candidates)
 
 
@@ -52,9 +95,7 @@ def _create_initial_assignments_for_schedule(
             candidates = [
                 student
                 for student in students_db
-                if student.status == "재학"
-                and student.grade in area.target_grades
-                and student.student_pk not in used_student_pks
+                if student.status == "재학" and student.grade in area.target_grades and student.student_pk not in used_student_pks
             ]
             if not candidates:
                 break
@@ -212,7 +253,7 @@ def reassign_canceled_assignment(assignment_id: int):
     if not candidates:
         raise HTTPException(status_code=400, detail="재배정 가능한 학생이 없습니다.")
 
-    selected_student = min(candidates, key=lambda x: (_get_cleaning_count(x.student_pk), x.student_pk))
+    selected_student = _pick_reassign_student(candidates)
 
     assignment.student_pk = selected_student.student_pk
     assignment.status = "배정"
