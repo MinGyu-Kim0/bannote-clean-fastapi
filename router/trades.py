@@ -1,6 +1,6 @@
 from fastapi import APIRouter, Query
 
-from schemas import TradeCreate, TradeUpdate
+from db.schemas import TradeCreate, TradeUpdate
 from services import trades_service
 
 router = APIRouter(prefix="/trades", tags=["청소 교환 관리"])

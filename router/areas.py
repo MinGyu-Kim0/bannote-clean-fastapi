@@ -1,6 +1,6 @@
 from fastapi import APIRouter
 from services import areas_service
-from schemas import AreaUpdate
+from db.schemas import AreaUpdate
 
 router = APIRouter(prefix="/areas", tags=["청소 구역 관리"])
 

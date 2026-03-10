@@ -1,6 +1,6 @@
 from fastapi import APIRouter
 from services import students_service
-from schemas import StudentUpdate
+from db.schemas import StudentUpdate
 
 router = APIRouter(prefix="/students", tags=["학생 관리"])
 
