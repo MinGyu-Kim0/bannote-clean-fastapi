@@ -1,4 +1,4 @@
-from schemas import Student, Area, Schedule, Assignment, Trade
+from db.schemas import Student, Area, Schedule, Assignment, Trade
 
 # 학생 데이터
 students_db = [
