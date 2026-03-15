@@ -17,6 +17,14 @@ class Student(BaseModel):
     role: str = "학생"
 
 
+class StudentCreate(BaseModel):
+    student_id: str
+    name: str
+    grade: int
+    status: str = "재학"
+    role: str = "학생"
+
+
 # 학생 정보 수정
 class StudentUpdate(BaseModel):
     student_id: str | None = None
@@ -34,6 +42,12 @@ class Area(BaseModel):
     target_grades: list[int]
 
 
+class AreaCreate(BaseModel):
+    name: str
+    need_peoples: int
+    target_grades: list[int]
+
+
 # 청소 구역 수정
 class AreaUpdate(BaseModel):
     name: str | None = None
@@ -45,6 +59,12 @@ class AreaUpdate(BaseModel):
 class Schedule(BaseModel):
     schedule_id: int
     cleaning_date: date
+    status: Literal["예정", "완료", "취소"] = "예정"
+
+
+class ScheduleUpdate(BaseModel):
+    cleaning_date: date | None = None
+    status: Literal["예정", "완료", "취소"] | None = None
 
 
 # 청소 배정
