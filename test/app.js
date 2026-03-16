@@ -21,11 +21,27 @@ const elements = {
   assignmentFilterName: $("#assignmentFilterName"),
   resetAssignmentsFilter: $("#resetAssignmentsFilter"),
   assignmentFilterMeta: $("#assignmentFilterMeta"),
+  bulkDeleteScheduleId: $("#bulkDeleteScheduleId"),
   statusAssignmentId: $("#statusAssignmentId"),
   reassignAssignmentId: $("#reassignAssignmentId"),
   tradeRequesterId: $("#tradeRequesterId"),
   tradeTargetId: $("#tradeTargetId"),
   tradeRequestId: $("#tradeRequestId"),
+  scheduleUpdateScheduleId: $("#scheduleUpdateScheduleId"),
+  scheduleEditDate: $("#scheduleEditDate"),
+  scheduleEditStatus: $("#scheduleEditStatus"),
+  studentUpdateStudentPk: $("#studentUpdateStudentPk"),
+  studentEditStudentId: $("#studentEditStudentId"),
+  studentEditName: $("#studentEditName"),
+  studentEditGrade: $("#studentEditGrade"),
+  studentEditStatus: $("#studentEditStatus"),
+  studentEditRole: $("#studentEditRole"),
+  studentStatusStudentPk: $("#studentStatusStudentPk"),
+  studentStatusValue: $("#studentStatusValue"),
+  areaUpdateAreaId: $("#areaUpdateAreaId"),
+  areaEditName: $("#areaEditName"),
+  areaEditNeedPeoples: $("#areaEditNeedPeoples"),
+  areaEditTargetGrades: $("#areaEditTargetGrades"),
   statusValue: $("#statusValue"),
   tradeDecision: $("#tradeDecision"),
 };
@@ -55,16 +71,23 @@ const STATUS_CLASS_MAP = {
   배정: "status-배정",
   완료: "status-완료",
   취소: "status-취소",
-  추노: "status-추노",
+  불이행: "status-불이행",
   대기: "status-대기",
   수락: "status-수락",
   거절: "status-거절",
 };
 
-const defaultBaseUrl =
-  window.location.origin && window.location.origin !== "null"
-    ? window.location.origin
-    : "mock";
+function getDefaultBaseUrl() {
+  const origin = typeof window.location.origin === "string" ? window.location.origin.trim() : "";
+
+  if (!origin || origin === "null" || origin === "file://" || window.location.protocol === "file:") {
+    return "mock";
+  }
+
+  return origin;
+}
+
+const defaultBaseUrl = getDefaultBaseUrl();
 
 elements.baseUrl.value = defaultBaseUrl;
 
@@ -238,8 +261,8 @@ const MOCK_INITIAL_DATA = {
     { area_id: 3, name: "복도", need_peoples: 1, target_grades: [1, 2] },
   ],
   schedules: [
-    { schedule_id: 1, cleaning_date: "2026-03-06" },
-    { schedule_id: 2, cleaning_date: "2026-03-13" },
+    { schedule_id: 1, cleaning_date: "2026-03-06", status: "예정" },
+    { schedule_id: 2, cleaning_date: "2026-03-13", status: "예정" },
   ],
   assignments: [
     { assignment_id: 1, schedule_id: 1, student_pk: 1, area_id: 1, status: "배정" },
@@ -279,33 +302,34 @@ function getMockStudents({ student_id: studentId, grade, name }) {
 }
 
 function addMockStudent(query = {}) {
-  const studentPk = toOptionalNumber(query.student_pk);
   const studentId = cleanText(query.student_id);
   const name = cleanText(query.name);
   const grade = toOptionalNumber(query.grade);
   const status = cleanText(query.status) || "재학";
   const role = cleanText(query.role) || "학생";
 
-  if (studentPk === undefined || !studentId || !name || grade === undefined) {
+  if (!studentId || !name || grade === undefined) {
     throw createMockHttpError(400, "학생 생성에 필요한 값이 부족합니다.");
   }
 
-  if (mockStore.students.some((student) => student.student_pk === studentPk || student.student_id === studentId)) {
+  if (mockStore.students.some((student) => student.student_id === studentId)) {
     throw createMockHttpError(400, "이미 존재하는 학생입니다.");
   }
 
-  mockStore.students.push({
-    student_pk: studentPk,
+  const student = {
+    student_pk: getNextMockId(mockStore.students, "student_pk"),
     student_id: studentId,
     name,
     grade,
     status,
     role,
-  });
+  };
+  mockStore.students.push(student);
 
   return {
     message: `${name} 학생(${studentId})이 추가되었습니다.`,
     student_id: studentId,
+    student,
   };
 }
 
@@ -323,34 +347,243 @@ function parseMockTargetGrades(rawValue) {
 }
 
 function addMockArea(query = {}) {
-  const areaId = toOptionalNumber(query.area_id);
   const name = cleanText(query.name);
   const needPeoples = toOptionalNumber(query.need_peoples);
   const targetGrades = parseMockTargetGrades(query.target_grades);
 
-  if (areaId === undefined || !name || needPeoples === undefined || !targetGrades.length) {
+  if (!name || needPeoples === undefined || !targetGrades.length) {
     throw createMockHttpError(400, "구역 생성에 필요한 값이 부족합니다.");
   }
   if (needPeoples < 1) {
     throw createMockHttpError(400, "필요 인원수는 1 이상이어야 합니다.");
   }
-  if (mockStore.areas.some((area) => area.area_id === areaId || area.name === name)) {
-    throw createMockHttpError(400, "이미 존재하는 구역입니다.");
+  if (mockStore.areas.some((area) => area.name === name)) {
+    throw createMockHttpError(400, "이미 존재하는 구역 이름입니다.");
   }
 
-  mockStore.areas.push({
-    area_id: areaId,
+  const area = {
+    area_id: getNextMockId(mockStore.areas, "area_id"),
     name,
     need_peoples: needPeoples,
     target_grades: targetGrades,
-  });
+  };
+  mockStore.areas.push(area);
 
-  return { message: `${name} 추가 되었습니다.`, name };
+  return {
+    message: "청소 구역이 추가되었습니다.",
+    area,
+  };
 }
 
-function getMockSchedules({ schedule_id: scheduleId, cleaning_date: cleaningDate } = {}) {
+function updateMockStudent(studentPk, body = {}) {
+  const student = mockStore.students.find((item) => item.student_pk === studentPk);
+  if (!student) {
+    throw createMockHttpError(404, "학생을 찾을 수 없습니다.");
+  }
+
+  const updatePayload = {};
+  const nextStudentId = cleanText(body.student_id);
+  const nextName = cleanText(body.name);
+  const nextGrade = toOptionalNumber(body.grade);
+  const nextStatus = cleanText(body.status);
+  const nextRole = cleanText(body.role);
+
+  if (nextStudentId) {
+    const duplicateStudent = mockStore.students.find(
+      (item) => item.student_pk !== studentPk && item.student_id === nextStudentId,
+    );
+    if (duplicateStudent) {
+      throw createMockHttpError(400, "해당 정보로 수정할 수 없습니다.");
+    }
+    updatePayload.student_id = nextStudentId;
+  }
+  if (nextName) {
+    updatePayload.name = nextName;
+  }
+  if (nextGrade !== undefined) {
+    updatePayload.grade = nextGrade;
+  }
+  if (nextStatus) {
+    updatePayload.status = nextStatus;
+  }
+  if (nextRole) {
+    updatePayload.role = nextRole;
+  }
+
+  const previousStatus = student.status;
+  Object.assign(student, updatePayload);
+
+  const canceledAssignments = [];
+  if (previousStatus !== "휴학" && student.status === "휴학") {
+    for (const assignment of mockStore.assignments) {
+      if (
+        assignment.student_pk === studentPk &&
+        (assignment.status === "배정" || assignment.status === "불이행")
+      ) {
+        assignment.status = "취소";
+        canceledAssignments.push(assignment.assignment_id);
+      }
+    }
+  }
+
+  return {
+    message: "학생 정보가 수정되었습니다.",
+    student,
+    canceled_assignments: canceledAssignments,
+  };
+}
+
+function deleteMockStudent(studentPk) {
+  const studentIndex = mockStore.students.findIndex((item) => item.student_pk === studentPk);
+  if (studentIndex < 0) {
+    throw createMockHttpError(404, `${studentPk}번 학생을 찾을 수 없습니다.`);
+  }
+
+  const linkedAssignment = mockStore.assignments.find((item) => item.student_pk === studentPk);
+  if (linkedAssignment) {
+    throw createMockHttpError(400, "배정 이력이 있는 학생은 삭제할 수 없습니다.");
+  }
+
+  mockStore.students.splice(studentIndex, 1);
+  return { message: "삭제되었습니다." };
+}
+
+function updateMockArea(areaId, body = {}) {
+  const area = mockStore.areas.find((item) => item.area_id === areaId);
+  if (!area) {
+    throw createMockHttpError(404, "찾을 수 없습니다.");
+  }
+
+  const updatePayload = {};
+  const nextName = cleanText(body.name);
+  const nextNeedPeoples = toOptionalNumber(body.need_peoples);
+  const nextTargetGrades = parseMockTargetGrades(body.target_grades);
+
+  if (nextName) {
+    const duplicateArea = mockStore.areas.find(
+      (item) => item.area_id !== areaId && item.name === nextName,
+    );
+    if (duplicateArea) {
+      throw createMockHttpError(400, "해당 이름으로 수정할 수 없습니다.");
+    }
+    updatePayload.name = nextName;
+  }
+  if (nextNeedPeoples !== undefined) {
+    if (nextNeedPeoples < 1) {
+      throw createMockHttpError(400, "필요 인원수는 1 이상이어야 합니다.");
+    }
+    updatePayload.need_peoples = nextNeedPeoples;
+  }
+  if (Array.isArray(body.target_grades)) {
+    if (!nextTargetGrades.length) {
+      throw createMockHttpError(400, "대상 학년을 1개 이상 입력하세요.");
+    }
+    updatePayload.target_grades = nextTargetGrades;
+  }
+
+  Object.assign(area, updatePayload);
+  return {
+    message: "정보가 수정되었습니다.",
+    area,
+  };
+}
+
+function deleteMockArea(areaId) {
+  const areaIndex = mockStore.areas.findIndex((item) => item.area_id === areaId);
+  if (areaIndex < 0) {
+    throw createMockHttpError(404, "찾을 수 없습니다.");
+  }
+
+  const linkedAssignment = mockStore.assignments.find((item) => item.area_id === areaId);
+  if (linkedAssignment) {
+    throw createMockHttpError(400, "배정 이력이 있는 구역은 삭제할 수 없습니다.");
+  }
+
+  mockStore.areas.splice(areaIndex, 1);
+  return { message: "삭제되었습니다." };
+}
+
+function getMockScheduleOrError(scheduleId) {
+  const schedule = mockStore.schedules.find((item) => item.schedule_id === scheduleId);
+  if (!schedule) {
+    throw createMockHttpError(404, "해당 일정이 존재하지 않습니다.");
+  }
+  return schedule;
+}
+
+function cancelMockPendingTradesForAssignmentIds(assignmentIds) {
+  if (!assignmentIds.length) {
+    return 0;
+  }
+
+  const assignmentIdSet = new Set(assignmentIds);
+  let canceledTradeCount = 0;
+
+  for (const trade of mockStore.trades) {
+    if (
+      trade.status === "대기" &&
+      (assignmentIdSet.has(trade.requester_assignment_id) || assignmentIdSet.has(trade.target_assignment_id))
+    ) {
+      trade.status = "취소";
+      canceledTradeCount += 1;
+    }
+  }
+
+  return canceledTradeCount;
+}
+
+function deleteMockAssignmentsByIds(assignmentIds) {
+  if (!assignmentIds.length) {
+    return { deletedAssignmentCount: 0, deletedTradeCount: 0 };
+  }
+
+  const assignmentIdSet = new Set(assignmentIds);
+  const deletedTradeCount = mockStore.trades.filter(
+    (trade) =>
+      assignmentIdSet.has(trade.requester_assignment_id) ||
+      assignmentIdSet.has(trade.target_assignment_id),
+  ).length;
+  const deletedAssignmentCount = mockStore.assignments.filter((assignment) =>
+    assignmentIdSet.has(assignment.assignment_id),
+  ).length;
+
+  mockStore.trades = mockStore.trades.filter(
+    (trade) =>
+      !assignmentIdSet.has(trade.requester_assignment_id) &&
+      !assignmentIdSet.has(trade.target_assignment_id),
+  );
+  mockStore.assignments = mockStore.assignments.filter(
+    (assignment) => !assignmentIdSet.has(assignment.assignment_id),
+  );
+
+  return { deletedAssignmentCount, deletedTradeCount };
+}
+
+function cancelMockAssignmentsBySchedule(scheduleId) {
+  const assignmentIds = mockStore.assignments
+    .filter((assignment) => assignment.schedule_id === scheduleId)
+    .map((assignment) => assignment.assignment_id);
+
+  let canceledAssignmentCount = 0;
+  for (const assignment of mockStore.assignments) {
+    if (assignment.schedule_id === scheduleId && assignment.status !== "취소") {
+      assignment.status = "취소";
+      canceledAssignmentCount += 1;
+    }
+  }
+
+  const canceledTradeCount = cancelMockPendingTradesForAssignmentIds(assignmentIds);
+
+  return {
+    canceledAssignmentCount,
+    canceledTradeCount,
+  };
+}
+
+function getMockSchedules({ schedule_id: scheduleId, cleaning_date: cleaningDate, status } = {}) {
   const numericScheduleId = toOptionalNumber(scheduleId);
   const normalizedCleaningDate = cleanText(cleaningDate);
+  const normalizedStatus = cleanText(status);
 
   if (numericScheduleId !== undefined) {
     const matchedById = mockStore.schedules.filter((schedule) => schedule.schedule_id === numericScheduleId);
@@ -366,6 +599,10 @@ function getMockSchedules({ schedule_id: scheduleId, cleaning_date: cleaningDate
       throw createMockHttpError(404, "해당 날짜 일정이 존재하지 않습니다.");
     }
     return matchedByDate;
+  }
+
+  if (normalizedStatus) {
+    return mockStore.schedules.filter((schedule) => schedule.status === normalizedStatus);
   }
 
   return mockStore.schedules;
@@ -395,7 +632,7 @@ function addMockSchedules(query = {}) {
     if (existingDates.has(cleaningDate)) {
       continue;
     }
-    const newSchedule = { schedule_id: nextId, cleaning_date: cleaningDate };
+    const newSchedule = { schedule_id: nextId, cleaning_date: cleaningDate, status: "예정" };
     mockStore.schedules.push(newSchedule);
     createdSchedules.push(newSchedule);
     existingDates.add(cleaningDate);
@@ -410,6 +647,70 @@ function addMockSchedules(query = {}) {
     message: "청소 일정이 생성되었습니다.",
     created_count: createdSchedules.length,
     schedules: createdSchedules,
+  };
+}
+
+function updateMockSchedule(scheduleId, body = {}) {
+  const schedule = getMockScheduleOrError(scheduleId);
+  const nextCleaningDate = cleanText(body.cleaning_date);
+  const nextStatus = cleanText(body.status);
+  const allowedStatuses = new Set(["예정", "완료", "취소"]);
+
+  if (nextStatus && !allowedStatuses.has(nextStatus)) {
+    throw createMockHttpError(400, "유효하지 않은 일정 상태 값입니다.");
+  }
+
+  if (nextCleaningDate) {
+    parseMockDate(nextCleaningDate, "청소일");
+    const duplicateSchedule = mockStore.schedules.find(
+      (item) => item.schedule_id !== scheduleId && item.cleaning_date === nextCleaningDate,
+    );
+    if (duplicateSchedule) {
+      throw createMockHttpError(400, "해당 날짜 일정이 이미 존재합니다.");
+    }
+  }
+
+  const previousStatus = schedule.status;
+  if (nextCleaningDate) {
+    schedule.cleaning_date = nextCleaningDate;
+  }
+  if (nextStatus) {
+    schedule.status = nextStatus;
+  }
+
+  let canceledAssignmentCount = 0;
+  let canceledTradeCount = 0;
+  if (previousStatus !== "취소" && schedule.status === "취소") {
+    const result = cancelMockAssignmentsBySchedule(scheduleId);
+    canceledAssignmentCount = result.canceledAssignmentCount;
+    canceledTradeCount = result.canceledTradeCount;
+  }
+
+  return {
+    message: "일정이 수정되었습니다.",
+    schedule,
+    canceled_assignment_count: canceledAssignmentCount,
+    canceled_trade_count: canceledTradeCount,
+  };
+}
+
+function deleteMockSchedule(scheduleId) {
+  const scheduleIndex = mockStore.schedules.findIndex((item) => item.schedule_id === scheduleId);
+  if (scheduleIndex < 0) {
+    throw createMockHttpError(404, "해당 일정이 존재하지 않습니다.");
+  }
+
+  const assignmentIds = mockStore.assignments
+    .filter((assignment) => assignment.schedule_id === scheduleId)
+    .map((assignment) => assignment.assignment_id);
+  const { deletedAssignmentCount, deletedTradeCount } = deleteMockAssignmentsByIds(assignmentIds);
+
+  mockStore.schedules.splice(scheduleIndex, 1);
+
+  return {
+    message: "일정이 삭제되었습니다.",
+    deleted_assignment_count: deletedAssignmentCount,
+    deleted_trade_count: deletedTradeCount,
   };
 }
 
@@ -528,8 +829,9 @@ function getMockAssignments({ assignment_id: assignmentId, schedule_id: schedule
 }
 
 function addMockAssignments() {
-  if (!mockStore.schedules.length) {
-    throw createMockHttpError(400, "생성된 일정이 없어 배정을 진행할 수 없습니다.");
+  const pendingSchedules = mockStore.schedules.filter((schedule) => schedule.status === "예정");
+  if (!pendingSchedules.length) {
+    throw createMockHttpError(400, "배정 가능한 예정 일정이 없습니다.");
   }
 
   let nextId = getNextMockId(mockStore.assignments, "assignment_id");
@@ -540,6 +842,11 @@ function addMockAssignments() {
   const totalUnfilledNeeds = [];
 
   for (const schedule of [...mockStore.schedules].sort((left, right) => left.schedule_id - right.schedule_id)) {
+    if (schedule.status !== "예정") {
+      skippedScheduleIds.push(schedule.schedule_id);
+      continue;
+    }
+
     const alreadyAssigned = mockStore.assignments.some((assignment) => assignment.schedule_id === schedule.schedule_id);
     if (alreadyAssigned) {
       skippedScheduleIds.push(schedule.schedule_id);
@@ -595,21 +902,23 @@ function getMockCleaningCount(studentPk) {
     (assignment) =>
       assignment.student_pk === studentPk &&
       assignment.status !== "취소" &&
-      assignment.status !== "추노",
+      assignment.status !== "불이행",
   ).length;
 }
 
 function updateMockAssignmentStatus(assignmentId, status) {
-  const allowedStatuses = new Set(["배정", "완료", "취소", "추노"]);
+  const allowedStatuses = new Set(["배정", "완료", "취소", "불이행"]);
   const assignment = getMockAssignmentOrError(assignmentId);
   if (!allowedStatuses.has(status)) {
     throw createMockHttpError(400, "유효하지 않은 청소 현황 값입니다.");
   }
 
   assignment.status = status;
+  const canceledTradeCount = status === "취소" ? cancelMockPendingTradesForAssignmentIds([assignmentId]) : 0;
   return {
     message: "청소 현황이 수정되었습니다.",
     assignment,
+    canceled_trade_count: canceledTradeCount,
   };
 }
 
@@ -657,6 +966,40 @@ function reassignMockCanceledAssignment(assignmentId) {
     message: "재배정이 완료되었습니다.",
     assignment,
     selected_student_cleaning_count: getMockCleaningCount(selected.student_pk),
+  };
+}
+
+function deleteMockAssignment(assignmentId) {
+  getMockAssignmentOrError(assignmentId);
+  const { deletedAssignmentCount, deletedTradeCount } = deleteMockAssignmentsByIds([assignmentId]);
+
+  return {
+    message: "배정이 삭제되었습니다.",
+    deleted_assignment_count: deletedAssignmentCount,
+    deleted_trade_count: deletedTradeCount,
+  };
+}
+
+function deleteMockAssignments(query = {}) {
+  const scheduleId = toOptionalNumber(query.schedule_id);
+  let assignmentIds = [];
+
+  if (scheduleId !== undefined) {
+    getMockScheduleOrError(scheduleId);
+    assignmentIds = mockStore.assignments
+      .filter((assignment) => assignment.schedule_id === scheduleId)
+      .map((assignment) => assignment.assignment_id);
+  } else {
+    assignmentIds = mockStore.assignments.map((assignment) => assignment.assignment_id);
+  }
+
+  const { deletedAssignmentCount, deletedTradeCount } = deleteMockAssignmentsByIds(assignmentIds);
+
+  return {
+    message: "배정이 일괄 삭제되었습니다.",
+    schedule_id: scheduleId,
+    deleted_assignment_count: deletedAssignmentCount,
+    deleted_trade_count: deletedTradeCount,
   };
 }
 
@@ -791,6 +1134,16 @@ function updateMockTradeStatus(requestId, body = {}) {
   };
 }
 
+function deleteMockTrade(requestId) {
+  const tradeIndex = mockStore.trades.findIndex((item) => item.request_id === requestId);
+  if (tradeIndex < 0) {
+    throw createMockHttpError(404, "해당 교환 요청이 존재하지 않습니다.");
+  }
+
+  mockStore.trades.splice(tradeIndex, 1);
+  return { message: "교환 요청이 삭제되었습니다." };
+}
+
 function handleMockRequest(method, path, { query = {}, body = {} } = {}) {
   const normalizedPath = normalizeMockPath(path);
 
@@ -803,8 +1156,18 @@ function handleMockRequest(method, path, { query = {}, body = {} } = {}) {
       return toMockResponse(getMockStudents(query));
     }
     if (method === "POST") {
-      return toMockResponse(addMockStudent(query), 201);
+      return toMockResponse(addMockStudent(body), 201);
     }
+  }
+
+  const studentMatch = normalizedPath.match(/^\/students\/(\d+)$/);
+  if (studentMatch && method === "PATCH") {
+    const studentPk = Number(studentMatch[1]);
+    return toMockResponse(updateMockStudent(studentPk, body));
+  }
+  if (studentMatch && method === "DELETE") {
+    const studentPk = Number(studentMatch[1]);
+    return toMockResponse(deleteMockStudent(studentPk));
   }
 
   if (normalizedPath === "/areas") {
@@ -812,8 +1175,18 @@ function handleMockRequest(method, path, { query = {}, body = {} } = {}) {
       return toMockResponse(mockStore.areas);
     }
     if (method === "POST") {
-      return toMockResponse(addMockArea(query), 201);
+      return toMockResponse(addMockArea(body), 201);
     }
+  }
+
+  const areaMatch = normalizedPath.match(/^\/areas\/(\d+)$/);
+  if (areaMatch && method === "PATCH") {
+    const areaId = Number(areaMatch[1]);
+    return toMockResponse(updateMockArea(areaId, body));
+  }
+  if (areaMatch && method === "DELETE") {
+    const areaId = Number(areaMatch[1]);
+    return toMockResponse(deleteMockArea(areaId));
   }
 
   if (normalizedPath === "/schedules") {
@@ -825,12 +1198,25 @@ function handleMockRequest(method, path, { query = {}, body = {} } = {}) {
     }
   }
 
+  const scheduleMatch = normalizedPath.match(/^\/schedules\/(\d+)$/);
+  if (scheduleMatch && method === "PATCH") {
+    const scheduleId = Number(scheduleMatch[1]);
+    return toMockResponse(updateMockSchedule(scheduleId, body));
+  }
+  if (scheduleMatch && method === "DELETE") {
+    const scheduleId = Number(scheduleMatch[1]);
+    return toMockResponse(deleteMockSchedule(scheduleId));
+  }
+
   if (normalizedPath === "/assignments") {
     if (method === "GET") {
       return toMockResponse(getMockAssignments(query));
     }
     if (method === "POST") {
       return toMockResponse(addMockAssignments(), 201);
+    }
+    if (method === "DELETE") {
+      return toMockResponse(deleteMockAssignments(query));
     }
   }
 
@@ -846,6 +1232,12 @@ function handleMockRequest(method, path, { query = {}, body = {} } = {}) {
     return toMockResponse(reassignMockCanceledAssignment(assignmentId));
   }
 
+  const assignmentDeleteMatch = normalizedPath.match(/^\/assignments\/(\d+)$/);
+  if (assignmentDeleteMatch && method === "DELETE") {
+    const assignmentId = Number(assignmentDeleteMatch[1]);
+    return toMockResponse(deleteMockAssignment(assignmentId));
+  }
+
   if (normalizedPath === "/trades") {
     if (method === "GET") {
       return toMockResponse(getMockTrades(query));
@@ -859,6 +1251,10 @@ function handleMockRequest(method, path, { query = {}, body = {} } = {}) {
   if (tradeMatch && method === "PATCH") {
     const requestId = Number(tradeMatch[1]);
     return toMockResponse(updateMockTradeStatus(requestId, body));
+  }
+  if (tradeMatch && method === "DELETE") {
+    const requestId = Number(tradeMatch[1]);
+    return toMockResponse(deleteMockTrade(requestId));
   }
 
   throw createMockHttpError(404, "Mock API에서 지원하지 않는 경로입니다.");
@@ -990,57 +1386,92 @@ function renderStatus(status) {
 
 function renderStudents() {
   if (!state.students.length) {
-    elements.studentsRows.innerHTML = `<tr><td colspan="5">데이터 없음</td></tr>`;
+    elements.studentsRows.innerHTML = `<tr><td colspan="6">데이터 없음</td></tr>`;
     return;
   }
 
+  const linkedStudentPks = new Set(state.assignments.map((assignment) => assignment.student_pk));
+
   elements.studentsRows.innerHTML = state.students
     .map(
-      (student) => `
-        <tr>
+      (student) => {
+        const deleteAction = linkedStudentPks.has(student.student_pk)
+          ? `<button type="button" class="mini-btn locked" disabled title="배정 이력이 있어 삭제할 수 없습니다.">잠김</button>`
+          : `<button type="button" class="mini-btn warn" data-action="delete-student" data-student-pk="${student.student_pk}">삭제</button>`;
+
+        return `
+        <tr data-student-row-id="${student.student_pk}">
           <td>${student.student_pk}</td>
           <td>${escapeHtml(student.student_id)}</td>
           <td>${escapeHtml(student.name)}</td>
           <td>${student.grade}</td>
           <td>${renderStatus(student.status)}</td>
+          <td>
+            <div class="row-actions">
+              <button type="button" class="mini-btn" data-action="pick-student" data-student-pk="${student.student_pk}">편집</button>
+              ${deleteAction}
+            </div>
+          </td>
         </tr>
-      `,
+      `;
+      },
     )
     .join("");
 }
 
 function renderAreas() {
   if (!state.areas.length) {
-    elements.areasRows.innerHTML = `<tr><td colspan="4">데이터 없음</td></tr>`;
+    elements.areasRows.innerHTML = `<tr><td colspan="5">데이터 없음</td></tr>`;
     return;
   }
 
+  const linkedAreaIds = new Set(state.assignments.map((assignment) => assignment.area_id));
+
   elements.areasRows.innerHTML = state.areas
     .map(
-      (area) => `
-        <tr>
+      (area) => {
+        const deleteAction = linkedAreaIds.has(area.area_id)
+          ? `<button type="button" class="mini-btn locked" disabled title="배정 이력이 있어 삭제할 수 없습니다.">잠김</button>`
+          : `<button type="button" class="mini-btn warn" data-action="delete-area" data-area-id="${area.area_id}">삭제</button>`;
+
+        return `
+        <tr data-area-row-id="${area.area_id}">
           <td>${area.area_id}</td>
           <td>${escapeHtml(area.name)}</td>
           <td>${area.need_peoples}</td>
           <td>${escapeHtml((area.target_grades || []).join(", "))}</td>
+          <td>
+            <div class="row-actions">
+              <button type="button" class="mini-btn" data-action="pick-area" data-area-id="${area.area_id}">편집</button>
+              ${deleteAction}
+            </div>
+          </td>
         </tr>
-      `,
+      `;
+      },
     )
     .join("");
 }
 
 function renderSchedules() {
   if (!state.schedules.length) {
-    elements.schedulesRows.innerHTML = `<tr><td colspan="2">데이터 없음</td></tr>`;
+    elements.schedulesRows.innerHTML = `<tr><td colspan="4">데이터 없음</td></tr>`;
     return;
   }
 
   elements.schedulesRows.innerHTML = state.schedules
     .map(
       (schedule) => `
-        <tr>
+        <tr data-schedule-row-id="${schedule.schedule_id}">
           <td>${schedule.schedule_id}</td>
           <td>${escapeHtml(schedule.cleaning_date)}</td>
+          <td>${renderStatus(schedule.status || "예정")}</td>
+          <td>
+            <div class="row-actions">
+              <button type="button" class="mini-btn" data-action="pick-schedule" data-schedule-id="${schedule.schedule_id}">편집</button>
+              <button type="button" class="mini-btn warn" data-action="delete-schedule" data-schedule-id="${schedule.schedule_id}">삭제</button>
+            </div>
+          </td>
         </tr>
       `,
     )
@@ -1059,18 +1490,21 @@ function renderAssignments() {
 
   const studentsMap = new Map(state.students.map((student) => [student.student_pk, student]));
   const areasMap = new Map(state.areas.map((area) => [area.area_id, area]));
+  const schedulesMap = new Map(state.schedules.map((schedule) => [schedule.schedule_id, schedule]));
 
   elements.assignmentsRows.innerHTML = assignments
     .map((assignment) => {
       const student = studentsMap.get(assignment.student_pk);
       const area = areasMap.get(assignment.area_id);
+      const schedule = schedulesMap.get(assignment.schedule_id);
       const studentName = student ? `${student.name}(${student.student_pk})` : `PK ${assignment.student_pk}`;
       const areaName = area ? `${area.name}(${area.area_id})` : `구역 ${assignment.area_id}`;
+      const scheduleLabel = schedule?.cleaning_date ?? `일정 ${assignment.schedule_id}`;
 
       return `
         <tr>
           <td>${assignment.assignment_id}</td>
-          <td>${assignment.schedule_id}</td>
+          <td>${escapeHtml(scheduleLabel)}</td>
           <td>${escapeHtml(areaName)}</td>
           <td>${escapeHtml(studentName)}</td>
           <td>${renderStatus(assignment.status)}</td>
@@ -1079,6 +1513,7 @@ function renderAssignments() {
               <button type="button" class="mini-btn" data-action="set-requester" data-assignment-id="${assignment.assignment_id}">신청자</button>
               <button type="button" class="mini-btn alt" data-action="set-target" data-assignment-id="${assignment.assignment_id}">대상자</button>
               <button type="button" class="mini-btn warn" data-action="set-status-target" data-assignment-id="${assignment.assignment_id}">상태</button>
+              <button type="button" class="mini-btn warn" data-action="delete-assignment" data-assignment-id="${assignment.assignment_id}">삭제</button>
             </div>
           </td>
         </tr>
@@ -1105,8 +1540,12 @@ function renderTrades() {
             <button type="button" class="mini-btn" data-action="pick-trade" data-request-id="${trade.request_id}">선택</button>
             <button type="button" class="mini-btn" data-action="quick-trade" data-request-id="${trade.request_id}" data-status="수락">수락</button>
             <button type="button" class="mini-btn alt" data-action="quick-trade" data-request-id="${trade.request_id}" data-status="거절">거절</button>
+            <button type="button" class="mini-btn warn" data-action="delete-trade" data-request-id="${trade.request_id}">삭제</button>
           `
-          : `<button type="button" class="mini-btn" data-action="pick-trade" data-request-id="${trade.request_id}">선택</button>`;
+          : `
+            <button type="button" class="mini-btn" data-action="pick-trade" data-request-id="${trade.request_id}">선택</button>
+            <button type="button" class="mini-btn warn" data-action="delete-trade" data-request-id="${trade.request_id}">삭제</button>
+          `;
 
       return `
         <tr>
@@ -1133,11 +1572,16 @@ function setSelectOptions(selectElement, options, placeholder, previousValue = "
 }
 
 function syncSelectors() {
+  const previousBulkDeleteScheduleId = elements.bulkDeleteScheduleId.value;
   const previousStatusAssignmentId = elements.statusAssignmentId.value;
   const previousReassignAssignmentId = elements.reassignAssignmentId.value;
   const previousTradeRequesterId = elements.tradeRequesterId.value;
   const previousTradeTargetId = elements.tradeTargetId.value;
   const previousTradeRequestId = elements.tradeRequestId.value;
+  const previousScheduleUpdateScheduleId = elements.scheduleUpdateScheduleId.value;
+  const previousStudentUpdateStudentPk = elements.studentUpdateStudentPk.value;
+  const previousStudentStatusStudentPk = elements.studentStatusStudentPk.value;
+  const previousAreaUpdateAreaId = elements.areaUpdateAreaId.value;
 
   const assignmentOptions = state.assignments.map((assignment) => ({
     value: assignment.assignment_id,
@@ -1158,6 +1602,27 @@ function syncSelectors() {
       label: `#${trade.request_id} | ${trade.requester_assignment_id} ↔ ${trade.target_assignment_id}`,
     }));
 
+  const scheduleOptions = state.schedules.map((schedule) => ({
+    value: schedule.schedule_id,
+    label: `일정 ${schedule.schedule_id} | ${schedule.cleaning_date} | ${schedule.status || "예정"}`,
+  }));
+
+  const studentOptions = state.students.map((student) => ({
+    value: student.student_pk,
+    label: `${student.name} (${student.student_id}) | ${student.status}`,
+  }));
+
+  const areaOptions = state.areas.map((area) => ({
+    value: area.area_id,
+    label: `${area.name} | 인원 ${area.need_peoples}`,
+  }));
+
+  setSelectOptions(
+    elements.bulkDeleteScheduleId,
+    scheduleOptions,
+    scheduleOptions.length ? "전체 배정" : "삭제할 배정 없음",
+    previousBulkDeleteScheduleId,
+  );
   setSelectOptions(elements.statusAssignmentId, assignmentOptions, "배정 선택", previousStatusAssignmentId);
   setSelectOptions(
     elements.reassignAssignmentId,
@@ -1168,11 +1633,113 @@ function syncSelectors() {
   setSelectOptions(elements.tradeRequesterId, assignmentOptions, "신청자 배정 선택", previousTradeRequesterId);
   setSelectOptions(elements.tradeTargetId, assignmentOptions, "대상자 배정 선택", previousTradeTargetId);
   setSelectOptions(
+    elements.scheduleUpdateScheduleId,
+    scheduleOptions,
+    scheduleOptions.length ? "일정 선택" : "일정 없음",
+    previousScheduleUpdateScheduleId,
+  );
+  setSelectOptions(
+    elements.studentUpdateStudentPk,
+    studentOptions,
+    studentOptions.length ? "학생 선택" : "학생 없음",
+    previousStudentUpdateStudentPk,
+  );
+  setSelectOptions(
+    elements.studentStatusStudentPk,
+    studentOptions,
+    studentOptions.length ? "학생 선택" : "학생 없음",
+    previousStudentStatusStudentPk,
+  );
+  setSelectOptions(
+    elements.areaUpdateAreaId,
+    areaOptions,
+    areaOptions.length ? "구역 선택" : "구역 없음",
+    previousAreaUpdateAreaId,
+  );
+  setSelectOptions(
     elements.tradeRequestId,
     pendingTradeOptions,
     pendingTradeOptions.length ? "요청 선택" : "대기 요청 없음",
     previousTradeRequestId,
   );
+
+  syncScheduleUpdateForm();
+  syncStudentUpdateForm();
+  syncAreaUpdateForm();
+}
+
+function clearScheduleUpdateForm() {
+  elements.scheduleEditDate.value = "";
+  elements.scheduleEditStatus.value = "";
+}
+
+function syncScheduleUpdateForm() {
+  const scheduleId = parseOptionalInt(elements.scheduleUpdateScheduleId.value);
+  if (scheduleId === undefined) {
+    clearScheduleUpdateForm();
+    return;
+  }
+
+  const schedule = state.schedules.find((item) => item.schedule_id === scheduleId);
+  if (!schedule) {
+    clearScheduleUpdateForm();
+    return;
+  }
+
+  elements.scheduleEditDate.value = schedule.cleaning_date ?? "";
+  elements.scheduleEditStatus.value = schedule.status ?? "예정";
+}
+
+function clearStudentUpdateForm() {
+  elements.studentEditStudentId.value = "";
+  elements.studentEditName.value = "";
+  elements.studentEditGrade.value = "";
+  elements.studentEditStatus.value = "";
+  elements.studentEditRole.value = "";
+}
+
+function syncStudentUpdateForm() {
+  const studentPk = parseOptionalInt(elements.studentUpdateStudentPk.value);
+  if (studentPk === undefined) {
+    clearStudentUpdateForm();
+    return;
+  }
+
+  const student = state.students.find((item) => item.student_pk === studentPk);
+  if (!student) {
+    clearStudentUpdateForm();
+    return;
+  }
+
+  elements.studentEditStudentId.value = student.student_id ?? "";
+  elements.studentEditName.value = student.name ?? "";
+  elements.studentEditGrade.value = student.grade ?? "";
+  elements.studentEditStatus.value = student.status ?? "";
+  elements.studentEditRole.value = student.role ?? "";
+}
+
+function clearAreaUpdateForm() {
+  elements.areaEditName.value = "";
+  elements.areaEditNeedPeoples.value = "";
+  elements.areaEditTargetGrades.value = "";
+}
+
+function syncAreaUpdateForm() {
+  const areaId = parseOptionalInt(elements.areaUpdateAreaId.value);
+  if (areaId === undefined) {
+    clearAreaUpdateForm();
+    return;
+  }
+
+  const area = state.areas.find((item) => item.area_id === areaId);
+  if (!area) {
+    clearAreaUpdateForm();
+    return;
+  }
+
+  elements.areaEditName.value = area.name ?? "";
+  elements.areaEditNeedPeoples.value = area.need_peoples ?? "";
+  elements.areaEditTargetGrades.value = (area.target_grades || []).join(", ");
 }
 
 function renderKpis() {
@@ -1195,6 +1762,56 @@ function renderAll() {
   renderTrades();
   syncSelectors();
   renderKpis();
+}
+
+function focusRow(selector) {
+  const row = document.querySelector(selector);
+  if (!row) {
+    return;
+  }
+
+  row.scrollIntoView({ block: "nearest", inline: "nearest" });
+  row.classList.add("row-flash");
+  window.setTimeout(() => {
+    row.classList.remove("row-flash");
+  }, 1800);
+}
+
+function focusStudentRow(studentPk) {
+  if (studentPk === undefined || studentPk === null) {
+    return;
+  }
+
+  const nextValue = String(studentPk);
+  elements.studentUpdateStudentPk.value = nextValue;
+  elements.studentStatusStudentPk.value = nextValue;
+  syncStudentUpdateForm();
+  focusRow(`[data-student-row-id="${nextValue}"]`);
+}
+
+function focusAreaRow(areaId) {
+  if (areaId === undefined || areaId === null) {
+    return;
+  }
+
+  const nextValue = String(areaId);
+  elements.areaUpdateAreaId.value = nextValue;
+  syncAreaUpdateForm();
+  focusRow(`[data-area-row-id="${nextValue}"]`);
+}
+
+function focusScheduleRow(scheduleId) {
+  if (scheduleId === undefined || scheduleId === null) {
+    return;
+  }
+
+  const nextValue = String(scheduleId);
+  elements.scheduleUpdateScheduleId.value = nextValue;
+  if (elements.bulkDeleteScheduleId.querySelector(`option[value="${nextValue}"]`)) {
+    elements.bulkDeleteScheduleId.value = nextValue;
+  }
+  syncScheduleUpdateForm();
+  focusRow(`[data-schedule-row-id="${nextValue}"]`);
 }
 
 function applyAssignmentFilter() {
@@ -1313,6 +1930,9 @@ function bindQuickActions() {
 
     const assignmentId = actionButton.dataset.assignmentId;
     const requestId = actionButton.dataset.requestId;
+    const studentPk = actionButton.dataset.studentPk;
+    const areaId = actionButton.dataset.areaId;
+    const scheduleId = actionButton.dataset.scheduleId;
 
     if (actionButton.dataset.action === "set-requester" && assignmentId) {
       elements.tradeRequesterId.value = assignmentId;
@@ -1321,6 +1941,24 @@ function bindQuickActions() {
 
     if (actionButton.dataset.action === "set-target" && assignmentId) {
       elements.tradeTargetId.value = assignmentId;
+      return;
+    }
+
+    if (actionButton.dataset.action === "pick-student" && studentPk) {
+      elements.studentUpdateStudentPk.value = studentPk;
+      elements.studentStatusStudentPk.value = studentPk;
+      syncStudentUpdateForm();
+      return;
+    }
+
+    if (actionButton.dataset.action === "pick-area" && areaId) {
+      elements.areaUpdateAreaId.value = areaId;
+      syncAreaUpdateForm();
+      return;
+    }
+
+    if (actionButton.dataset.action === "pick-schedule" && scheduleId) {
+      focusScheduleRow(scheduleId);
       return;
     }
 
@@ -1342,6 +1980,53 @@ function bindQuickActions() {
       await runMutation(`교환 요청 ${status}`, () =>
         requestApi("PATCH", `/trades/${requestId}`, { body: { status } }),
       );
+      return;
+    }
+
+    if (actionButton.dataset.action === "delete-student" && studentPk) {
+      const student = state.students.find((item) => String(item.student_pk) === String(studentPk));
+      if (!window.confirm(`${student?.name ?? "선택한 학생"}을(를) 삭제할까요?`)) {
+        return;
+      }
+      await runMutation("학생 삭제", () => requestApi("DELETE", `/students/${studentPk}`));
+      return;
+    }
+
+    if (actionButton.dataset.action === "delete-area" && areaId) {
+      const area = state.areas.find((item) => String(item.area_id) === String(areaId));
+      if (!window.confirm(`${area?.name ?? "선택한 구역"}을(를) 삭제할까요?`)) {
+        return;
+      }
+      await runMutation("구역 삭제", () => requestApi("DELETE", `/areas/${areaId}`));
+      return;
+    }
+
+    if (actionButton.dataset.action === "delete-schedule" && scheduleId) {
+      const schedule = state.schedules.find((item) => String(item.schedule_id) === String(scheduleId));
+      if (
+        !window.confirm(
+          `${schedule?.cleaning_date ?? `일정 ${scheduleId}`}을(를) 삭제할까요? 연결된 배정과 교환 요청도 함께 삭제됩니다.`,
+        )
+      ) {
+        return;
+      }
+      await runMutation("일정 삭제", () => requestApi("DELETE", `/schedules/${scheduleId}`));
+      return;
+    }
+
+    if (actionButton.dataset.action === "delete-assignment" && assignmentId) {
+      if (!window.confirm(`#${assignmentId} 배정을 삭제할까요? 연결된 교환 요청도 함께 삭제됩니다.`)) {
+        return;
+      }
+      await runMutation("배정 삭제", () => requestApi("DELETE", `/assignments/${assignmentId}`));
+      return;
+    }
+
+    if (actionButton.dataset.action === "delete-trade" && requestId) {
+      if (!window.confirm(`#${requestId} 교환 요청을 삭제할까요?`)) {
+        return;
+      }
+      await runMutation("교환 요청 삭제", () => requestApi("DELETE", `/trades/${requestId}`));
     }
   });
 }
@@ -1367,7 +2052,8 @@ function bindForms() {
   $("#formCreateSchedule").addEventListener("submit", async (event) => {
     event.preventDefault();
     await guardForm("일정 생성", async () => {
-      const formData = new FormData(event.currentTarget);
+      const form = event.currentTarget;
+      const formData = new FormData(form);
       const result = await runMutation("일정 생성", () =>
         requestApi("POST", "/schedules/", {
           query: {
@@ -1377,15 +2063,51 @@ function bindForms() {
         }),
       );
       if (result?.ok) {
-        event.currentTarget.reset();
+        form.reset();
+        const createdSchedules = Array.isArray(result.payload?.schedules) ? result.payload.schedules : [];
+        const lastCreatedSchedule = createdSchedules[createdSchedules.length - 1];
+        focusScheduleRow(lastCreatedSchedule?.schedule_id);
       }
     });
+  });
+
+  elements.scheduleUpdateScheduleId.addEventListener("change", () => {
+    syncScheduleUpdateForm();
+  });
+
+  elements.studentUpdateStudentPk.addEventListener("change", () => {
+    syncStudentUpdateForm();
+  });
+
+  elements.areaUpdateAreaId.addEventListener("change", () => {
+    syncAreaUpdateForm();
   });
 
   $("#formAutoAssign").addEventListener("submit", async (event) => {
     event.preventDefault();
     await guardForm("자동 배정", async () => {
       await runMutation("자동 배정", () => requestApi("POST", "/assignments/"));
+    });
+  });
+
+  $("#formBulkDeleteAssignments").addEventListener("submit", async (event) => {
+    event.preventDefault();
+    await guardForm("배정 일괄 삭제", async () => {
+      const scheduleId = parseOptionalInt(elements.bulkDeleteScheduleId.value);
+      const targetLabel =
+        scheduleId === undefined
+          ? "전체 배정"
+          : state.schedules.find((item) => item.schedule_id === scheduleId)?.cleaning_date ?? `일정 ${scheduleId}`;
+
+      if (!window.confirm(`${targetLabel}의 배정을 삭제할까요? 연결된 교환 요청도 함께 삭제됩니다.`)) {
+        return;
+      }
+
+      await runMutation("배정 일괄 삭제", () =>
+        requestApi("DELETE", "/assignments/", {
+          query: scheduleId === undefined ? undefined : { schedule_id: scheduleId },
+        }),
+      );
     });
   });
 
@@ -1397,6 +2119,38 @@ function bindForms() {
       await runMutation("배정 상태 변경", () =>
         requestApi("PATCH", `/assignments/${assignmentId}/status`, { query: { status } }),
       );
+    });
+  });
+
+  $("#formUpdateSchedule").addEventListener("submit", async (event) => {
+    event.preventDefault();
+    await guardForm("일정 수정", async () => {
+      const scheduleId = parseRequiredInt(elements.scheduleUpdateScheduleId.value, "일정");
+      const payload = {};
+
+      const cleaningDate = cleanText(elements.scheduleEditDate.value);
+      const status = cleanText(elements.scheduleEditStatus.value);
+
+      if (cleaningDate) {
+        payload.cleaning_date = cleaningDate;
+      }
+      if (status) {
+        payload.status = status;
+      }
+
+      if (!Object.keys(payload).length) {
+        throw new Error("수정할 일자 또는 상태를 입력하세요.");
+      }
+
+      const result = await runMutation("일정 수정", () =>
+        requestApi("PATCH", `/schedules/${scheduleId}`, {
+          body: payload,
+        }),
+      );
+
+      if (result?.ok) {
+        focusScheduleRow(scheduleId);
+      }
     });
   });
 
@@ -1445,11 +2199,11 @@ function bindForms() {
   $("#formAddStudent").addEventListener("submit", async (event) => {
     event.preventDefault();
     await guardForm("학생 등록", async () => {
-      const formData = new FormData(event.currentTarget);
+      const form = event.currentTarget;
+      const formData = new FormData(form);
       const result = await runMutation("학생 등록", () =>
         requestApi("POST", "/students/", {
-          query: {
-            student_pk: parseRequiredInt(formData.get("student_pk"), "학생 PK"),
+          body: {
             student_id: cleanText(formData.get("student_id")),
             name: cleanText(formData.get("name")),
             grade: parseRequiredInt(formData.get("grade"), "학년"),
@@ -1459,15 +2213,75 @@ function bindForms() {
         }),
       );
       if (result?.ok) {
-        event.currentTarget.reset();
+        form.reset();
+        focusStudentRow(result.payload?.student?.student_pk);
       }
+    });
+  });
+
+  $("#formUpdateStudentStatus").addEventListener("submit", async (event) => {
+    event.preventDefault();
+    await guardForm("학생 상태 변경", async () => {
+      const studentPk = parseRequiredInt(elements.studentStatusStudentPk.value, "학생");
+      const status = cleanText(elements.studentStatusValue.value);
+      const result = await runMutation("학생 상태 변경", () =>
+        requestApi("PATCH", `/students/${studentPk}`, {
+          body: {
+            status,
+          },
+        }),
+      );
+      if (result?.ok) {
+        elements.studentStatusValue.value = "";
+      }
+    });
+  });
+
+  $("#formUpdateStudent").addEventListener("submit", async (event) => {
+    event.preventDefault();
+    await guardForm("학생 수정", async () => {
+      const studentPk = parseRequiredInt(elements.studentUpdateStudentPk.value, "학생");
+      const payload = {};
+
+      const studentId = cleanText(elements.studentEditStudentId.value);
+      const name = cleanText(elements.studentEditName.value);
+      const grade = parseOptionalInt(elements.studentEditGrade.value);
+      const status = cleanText(elements.studentEditStatus.value);
+      const role = cleanText(elements.studentEditRole.value);
+
+      if (studentId) {
+        payload.student_id = studentId;
+      }
+      if (name) {
+        payload.name = name;
+      }
+      if (grade !== undefined) {
+        payload.grade = grade;
+      }
+      if (status) {
+        payload.status = status;
+      }
+      if (role) {
+        payload.role = role;
+      }
+
+      if (!Object.keys(payload).length) {
+        throw new Error("수정할 값을 1개 이상 입력하세요.");
+      }
+
+      await runMutation("학생 수정", () =>
+        requestApi("PATCH", `/students/${studentPk}`, {
+          body: payload,
+        }),
+      );
     });
   });
 
   $("#formAddArea").addEventListener("submit", async (event) => {
     event.preventDefault();
     await guardForm("구역 등록", async () => {
-      const formData = new FormData(event.currentTarget);
+      const form = event.currentTarget;
+      const formData = new FormData(form);
       const targetGrades = parseCsvNumbers(formData.get("target_grades"));
       if (!targetGrades) {
         throw new Error("대상 학년을 1개 이상 입력하세요. 예: 1,2");
@@ -1475,8 +2289,7 @@ function bindForms() {
 
       const result = await runMutation("구역 등록", () =>
         requestApi("POST", "/areas/", {
-          query: {
-            area_id: parseRequiredInt(formData.get("area_id"), "구역 ID"),
+          body: {
             name: cleanText(formData.get("name")),
             need_peoples: parseRequiredInt(formData.get("need_peoples"), "필요 인원"),
             target_grades: targetGrades,
@@ -1484,16 +2297,60 @@ function bindForms() {
         }),
       );
       if (result?.ok) {
-        event.currentTarget.reset();
+        form.reset();
+        focusAreaRow(result.payload?.area?.area_id);
       }
+    });
+  });
+
+  $("#formUpdateArea").addEventListener("submit", async (event) => {
+    event.preventDefault();
+    await guardForm("구역 수정", async () => {
+      const areaId = parseRequiredInt(elements.areaUpdateAreaId.value, "구역");
+      const payload = {};
+
+      const name = cleanText(elements.areaEditName.value);
+      const needPeoples = parseOptionalInt(elements.areaEditNeedPeoples.value);
+      const targetGradesText = cleanText(elements.areaEditTargetGrades.value);
+
+      if (name) {
+        payload.name = name;
+      }
+      if (needPeoples !== undefined) {
+        payload.need_peoples = needPeoples;
+      }
+      if (targetGradesText) {
+        const targetGrades = parseCsvNumbers(targetGradesText);
+        if (!targetGrades) {
+          throw new Error("대상 학년을 1개 이상 입력하세요. 예: 1,2");
+        }
+        payload.target_grades = targetGrades;
+      }
+
+      if (!Object.keys(payload).length) {
+        throw new Error("수정할 값을 1개 이상 입력하세요.");
+      }
+
+      await runMutation("구역 수정", () =>
+        requestApi("PATCH", `/areas/${areaId}`, {
+          body: payload,
+        }),
+      );
     });
   });
 }
 
 function bindTopActions() {
-  $("#applyBaseUrl").addEventListener("click", () => {
+  $("#applyBaseUrl").addEventListener("click", async () => {
     elements.baseUrl.value = normalizeBaseUrl();
-    setServerState(`Base URL 적용: ${elements.baseUrl.value}`, true);
+
+    try {
+      await refreshAll({ silent: true });
+      setServerState(`Base URL 적용 및 동기화 완료: ${elements.baseUrl.value}`, true);
+    } catch (error) {
+      showClientError("Base URL 적용", error);
+      setServerState(`Base URL 적용 실패: ${elements.baseUrl.value}`, false);
+    }
   });
 
   $("#healthBtn").addEventListener("click", async () => {

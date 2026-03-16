@@ -314,6 +314,11 @@ tbody tr:hover {
   background: #fff8ed;
 }
 
+tbody tr.row-flash td {
+  background: #fff1c8;
+  transition: background-color 0.4s ease;
+}
+
 .status-pill {
   display: inline-block;
   border-radius: 999px;
@@ -339,7 +344,7 @@ tbody tr:hover {
   color: #a92d23;
 }
 
-.status-추노,
+.status-불이행,
 .status-대기 {
   background: #fff2c9;
   color: #89630f;
@@ -365,6 +370,15 @@ tbody tr:hover {
 .mini-btn.warn {
   background: #8a6513;
   border-color: #6f530f;
+}
+
+.mini-btn.locked,
+.mini-btn:disabled {
+  background: #c7c0b4;
+  border-color: #aaa090;
+  color: #5f584d;
+  cursor: not-allowed;
+  filter: none;
 }
 
 .flow {

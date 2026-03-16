@@ -75,6 +75,7 @@
                 <th>이름</th>
                 <th>학년</th>
                 <th>상태</th>
+                <th>작업</th>
               </tr>
             </thead>
             <tbody id="studentsRows"></tbody>
@@ -95,6 +96,7 @@
                 <th>구역</th>
                 <th>필요 인원</th>
                 <th>대상 학년</th>
+                <th>작업</th>
               </tr>
             </thead>
             <tbody id="areasRows"></tbody>
@@ -113,6 +115,8 @@
               <tr>
                 <th>ID</th>
                 <th>날짜</th>
+                <th>상태</th>
+                <th>작업</th>
               </tr>
             </thead>
             <tbody id="schedulesRows"></tbody>
@@ -194,8 +198,17 @@
           <button type="submit">전체 일정 자동 배정</button>
         </form>
 
+        <form id="formBulkDeleteAssignments" class="flow-form">
+          <h3>3) 배정 일괄 삭제</h3>
+          <div class="flow-row">
+            <select id="bulkDeleteScheduleId"></select>
+          </div>
+          <p class="flow-sub">일정을 선택하면 해당 일정 배정만, 비워두면 전체 배정을 삭제합니다.</p>
+          <button type="submit">배정 일괄 삭제</button>
+        </form>
+
         <form id="formUpdateAssignmentStatus" class="flow-form">
-          <h3>3) 배정 상태 변경</h3>
+          <h3>4) 배정 상태 변경</h3>
           <div class="flow-row">
             <select id="statusAssignmentId" required></select>
             <select id="statusValue" required>
@@ -203,14 +216,14 @@
               <option value="배정">배정</option>
               <option value="완료">완료</option>
               <option value="취소">취소</option>
-              <option value="추노">추노</option>
+              <option value="불이행">불이행</option>
             </select>
           </div>
           <button type="submit">상태 적용</button>
         </form>
 
         <form id="formReassignCanceled" class="flow-form">
-          <h3>4) 취소 건 재배정</h3>
+          <h3>5) 취소 건 재배정</h3>
           <div class="flow-row">
             <select id="reassignAssignmentId" required></select>
           </div>
@@ -218,7 +231,7 @@
         </form>
 
         <form id="formCreateTrade" class="flow-form">
-          <h3>5) 교환 요청 생성</h3>
+          <h3>6) 교환 요청 생성</h3>
           <div class="flow-row">
             <select id="tradeRequesterId" required></select>
             <select id="tradeTargetId" required></select>
@@ -227,7 +240,7 @@
         </form>
 
         <form id="formProcessTrade" class="flow-form">
-          <h3>6) 교환 요청 처리</h3>
+          <h3>7) 교환 요청 처리</h3>
           <div class="flow-row">
             <select id="tradeRequestId" required></select>
             <select id="tradeDecision" required>
@@ -247,7 +260,6 @@
         <form id="formAddStudent" class="flow-form">
           <h3>학생 등록</h3>
           <div class="flow-row">
-            <input name="student_pk" type="number" placeholder="PK" required>
             <input name="student_id" placeholder="학번" required>
           </div>
           <div class="flow-row">
@@ -258,20 +270,95 @@
             <input name="status" placeholder="상태 (기본: 재학)">
             <input name="role" placeholder="역할 (기본: 학생)">
           </div>
+          <p class="flow-sub">학생 PK는 DB에서 자동 생성됩니다.</p>
           <button type="submit">학생 추가</button>
+        </form>
+
+        <form id="formUpdateStudentStatus" class="flow-form">
+          <h3>학생 상태 변경</h3>
+          <div class="flow-row">
+            <select id="studentStatusStudentPk" required></select>
+            <select id="studentStatusValue" required>
+              <option value="">상태 선택</option>
+              <option value="재학">재학</option>
+              <option value="휴학">휴학</option>
+            </select>
+          </div>
+          <p class="flow-sub">휴학 처리 시 진행 중 배정은 자동으로 취소됩니다.</p>
+          <button type="submit">상태 변경</button>
         </form>
 
         <form id="formAddArea" class="flow-form">
           <h3>구역 등록</h3>
           <div class="flow-row">
-            <input name="area_id" type="number" placeholder="구역 ID" required>
             <input name="name" placeholder="구역명" required>
           </div>
           <div class="flow-row">
             <input name="need_peoples" type="number" min="1" placeholder="필요 인원" required>
             <input name="target_grades" placeholder="대상 학년 (예: 1,2)" required>
           </div>
+          <p class="flow-sub">구역 ID는 DB에서 자동 생성됩니다.</p>
           <button type="submit">구역 추가</button>
+        </form>
+      </article>
+
+      <article class="flow-card">
+        <h2>데이터 수정</h2>
+
+        <form id="formUpdateSchedule" class="flow-form">
+          <h3>일정 수정</h3>
+          <div class="flow-row">
+            <select id="scheduleUpdateScheduleId" required></select>
+          </div>
+          <div class="flow-row">
+            <input id="scheduleEditDate" type="date">
+            <select id="scheduleEditStatus">
+              <option value="">상태 선택</option>
+              <option value="예정">예정</option>
+              <option value="완료">완료</option>
+              <option value="취소">취소</option>
+            </select>
+          </div>
+          <p class="flow-sub">일정을 취소하면 해당 일정의 배정과 대기 중 교환 요청도 함께 취소됩니다.</p>
+          <button type="submit">일정 수정</button>
+        </form>
+
+        <form id="formUpdateStudent" class="flow-form">
+          <h3>학생 정보 수정</h3>
+          <div class="flow-row">
+            <select id="studentUpdateStudentPk" required></select>
+          </div>
+          <div class="flow-row">
+            <input id="studentEditStudentId" placeholder="학번">
+            <input id="studentEditName" placeholder="이름">
+          </div>
+          <div class="flow-row">
+            <input id="studentEditGrade" type="number" placeholder="학년">
+            <select id="studentEditStatus">
+              <option value="">상태 선택</option>
+              <option value="재학">재학</option>
+              <option value="휴학">휴학</option>
+            </select>
+          </div>
+          <div class="flow-row">
+            <input id="studentEditRole" placeholder="역할">
+          </div>
+          <button type="submit">학생 수정</button>
+        </form>
+
+        <form id="formUpdateArea" class="flow-form">
+          <h3>구역 정보 수정</h3>
+          <div class="flow-row">
+            <select id="areaUpdateAreaId" required></select>
+          </div>
+          <div class="flow-row">
+            <input id="areaEditName" placeholder="구역명">
+            <input id="areaEditNeedPeoples" type="number" min="1" placeholder="필요 인원">
+          </div>
+          <div class="flow-row">
+            <input id="areaEditTargetGrades" placeholder="대상 학년 (예: 1,2)">
+          </div>
+          <button type="submit">구역 수정</button>
         </form>
       </article>
 

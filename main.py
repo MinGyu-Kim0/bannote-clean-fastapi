@@ -1,9 +1,24 @@
+from contextlib import asynccontextmanager
+
 from fastapi import FastAPI
 from fastapi.middleware.cors import CORSMiddleware
 from fastapi.staticfiles import StaticFiles
+from db.models import init_db
 from router import assignments, areas, schedules, students, trades
 
-app = FastAPI(title="청소 관리 시스템", description="청소 구역 배정 및 관리를 위한 API 서버", version="1.0.0")
+
+@asynccontextmanager
+async def lifespan(_: FastAPI):
+    init_db()
+    yield
+
+
+app = FastAPI(
+    title="청소 관리 시스템",
+    description="청소 구역 배정 및 관리를 위한 API 서버",
+    version="1.0.0",
+    lifespan=lifespan,
+)
 
 app.add_middleware(
     CORSMiddleware,
