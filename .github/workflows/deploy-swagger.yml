@@ -20,21 +20,8 @@ concurrency:
 jobs:
   build:
     runs-on: ubuntu-latest
-    services:
-      mysql:
-        image: mysql:8
-        env:
-          MYSQL_ROOT_PASSWORD: mysql
-          MYSQL_DATABASE: cleaning
-        options: >-
-          --health-cmd="mysqladmin ping -h 127.0.0.1 -pmysql"
-          --health-interval=10s
-          --health-timeout=5s
-          --health-retries=10
-        ports:
-          - 3306:3306
     env:
-      DATABASE_URL: mysql+pymysql://root:mysql@localhost:3306/cleaning?charset=utf8mb4
+      DATABASE_URL: sqlite:///./docs.sqlite3
 
     steps:
       - name: Checkout repository
@@ -53,32 +40,6 @@ jobs:
           python -m pip install --upgrade pip
           grep -v " @ file:///" requirements.txt > requirements.ci.txt
           pip install -r requirements.ci.txt
-
-      - name: Wait for MySQL
-        shell: bash
-        run: |
-          python - <<'PY'
-          import time
-          import pymysql
-
-          for attempt in range(20):
-              try:
-                  connection = pymysql.connect(
-                      host="127.0.0.1",
-                      user="root",
-                      password="mysql",
-                      database="cleaning",
-                      port=3306,
-                  )
-                  connection.close()
-                  print("MySQL is ready")
-                  raise SystemExit(0)
-              except Exception as exc:
-                  print(f"Waiting for MySQL... ({attempt + 1}/20): {exc}")
-                  time.sleep(3)
-
-          raise SystemExit("MySQL did not become ready in time")
-          PY
 
       - name: Generate static Swagger UI
         shell: bash
