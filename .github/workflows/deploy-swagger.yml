@@ -1,0 +1,150 @@
+name: Generate Swagger and Deploy
+
+on:
+  push:
+    branches: [main]
+    paths-ignore:
+      - "site/**"
+      - "test/**"
+  workflow_dispatch:
+
+permissions:
+  contents: read
+  pages: write
+  id-token: write
+
+concurrency:
+  group: github-pages
+  cancel-in-progress: true
+
+jobs:
+  build:
+    runs-on: ubuntu-latest
+    services:
+      mysql:
+        image: mysql:8
+        env:
+          MYSQL_ROOT_PASSWORD: mysql
+          MYSQL_DATABASE: cleaning
+        options: >-
+          --health-cmd="mysqladmin ping -h 127.0.0.1 -pmysql"
+          --health-interval=10s
+          --health-timeout=5s
+          --health-retries=10
+        ports:
+          - 3306:3306
+    env:
+      DATABASE_URL: mysql+pymysql://root:mysql@localhost:3306/cleaning?charset=utf8mb4
+
+    steps:
+      - name: Checkout repository
+        uses: actions/checkout@v4
+
+      - name: Setup Pages
+        uses: actions/configure-pages@v5
+
+      - name: Setup Python
+        uses: actions/setup-python@v5
+        with:
+          python-version: "3.14"
+
+      - name: Install dependencies
+        run: |
+          python -m pip install --upgrade pip
+          grep -v " @ file:///" requirements.txt > requirements.ci.txt
+          pip install -r requirements.ci.txt
+
+      - name: Wait for MySQL
+        shell: bash
+        run: |
+          python - <<'PY'
+          import time
+          import pymysql
+
+          for attempt in range(20):
+              try:
+                  connection = pymysql.connect(
+                      host="127.0.0.1",
+                      user="root",
+                      password="mysql",
+                      database="cleaning",
+                      port=3306,
+                  )
+                  connection.close()
+                  print("MySQL is ready")
+                  raise SystemExit(0)
+              except Exception as exc:
+                  print(f"Waiting for MySQL... ({attempt + 1}/20): {exc}")
+                  time.sleep(3)
+
+          raise SystemExit("MySQL did not become ready in time")
+          PY
+
+      - name: Generate static Swagger UI
+        shell: bash
+        run: |
+          python - <<'PY'
+          from pathlib import Path
+          import json
+
+          from main import app
+
+          site_dir = Path("site")
+          site_dir.mkdir(parents=True, exist_ok=True)
+
+          schema = app.openapi()
+          (site_dir / "openapi.json").write_text(
+              json.dumps(schema, ensure_ascii=False, indent=2),
+              encoding="utf-8",
+          )
+
+          (site_dir / "index.html").write_text(
+              """<!DOCTYPE html>
+          <html lang="ko">
+          <head>
+            <meta charset="UTF-8" />
+            <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+            <title>Bannote API Docs</title>
+            <link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/swagger-ui-dist@5/swagger-ui.css" />
+            <style>
+              body { margin: 0; background: #fafafa; }
+              .topbar { display: none; }
+            </style>
+          </head>
+          <body>
+            <div id="swagger-ui"></div>
+            <script src="https://cdn.jsdelivr.net/npm/swagger-ui-dist@5/swagger-ui-bundle.js"></script>
+            <script>
+              SwaggerUIBundle({
+                url: "./openapi.json",
+                dom_id: "#swagger-ui",
+                deepLinking: true,
+                presets: [SwaggerUIBundle.presets.apis],
+                layout: "BaseLayout"
+              });
+            </script>
+          </body>
+          </html>
+          """,
+              encoding="utf-8",
+          )
+
+          (site_dir / ".nojekyll").write_text("", encoding="utf-8")
+          PY
+
+      - name: Upload Pages artifact
+        uses: actions/upload-pages-artifact@v4
+        with:
+          path: site
+
+  deploy:
+    needs: build
+    runs-on: ubuntu-latest
+    environment:
+      name: github-pages
+      url: ${{ steps.deployment.outputs.page_url }}
+
+    steps:
+      - name: Deploy to GitHub Pages
+        id: deployment
+        uses: actions/deploy-pages@v4
