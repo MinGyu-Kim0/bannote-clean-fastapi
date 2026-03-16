@@ -36,9 +36,22 @@ jobs:
           python-version: "3.14"
 
       - name: Install dependencies
+        shell: bash
         run: |
           python -m pip install --upgrade pip
-          grep -v " @ file:///" requirements.txt > requirements.ci.txt
+          python - <<'PY'
+          from pathlib import Path
+
+          raw = Path("requirements.txt").read_bytes()
+          if raw.startswith((b"\xff\xfe", b"\xfe\xff")):
+              text = raw.decode("utf-16")
+          else:
+              text = raw.decode("utf-8")
+
+          lines = [line for line in text.splitlines() if " @ file:///" not in line]
+          Path("requirements.ci.txt").write_text("\n".join(lines) + "\n", encoding="utf-8")
+          print(f"wrote {len(lines)} requirement lines")
+          PY
           pip install -r requirements.ci.txt
 
       - name: Generate static Swagger UI
