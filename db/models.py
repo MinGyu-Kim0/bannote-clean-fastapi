@@ -44,6 +44,7 @@ class Student(Base):
     grade = Column(Integer, nullable=False)
     status = Column(String(50), nullable=False, default="재학")
     role = Column(String(20), nullable=False, default="학생")
+    password_hash = Column(String(128), nullable=True)
 
 
 class Area(Base):
@@ -87,11 +88,15 @@ def init_db() -> None:
 
     inspector = inspect(engine)
     schedule_columns = {column["name"] for column in inspector.get_columns("schedules")}
+    student_columns = {column["name"] for column in inspector.get_columns("students")}
 
     with engine.begin() as connection:
         if "status" not in schedule_columns:
             connection.execute(text("ALTER TABLE schedules ADD COLUMN status VARCHAR(20) NOT NULL DEFAULT '예정'"))
         connection.execute(text("UPDATE schedules SET status = '예정' WHERE status IS NULL"))
+
+        if "password_hash" not in student_columns:
+            connection.execute(text("ALTER TABLE students ADD COLUMN password_hash VARCHAR(128)"))
 
 
 def get_db():

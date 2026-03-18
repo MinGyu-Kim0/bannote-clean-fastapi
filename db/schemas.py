@@ -9,6 +9,8 @@ from pydantic import BaseModel
 
 # 학생
 class Student(BaseModel):
+    model_config = {"from_attributes": True}
+
     student_pk: int  # 대리키(PK)
     student_id: str
     name: str
@@ -91,3 +93,20 @@ class TradeCreate(BaseModel):
 
 class TradeUpdate(BaseModel):
     status: Literal["수락", "거절", "취소"]
+
+
+# 인증
+class LoginRequest(BaseModel):
+    student_id: str
+    password: str
+
+
+class TokenResponse(BaseModel):
+    access_token: str
+    token_type: str = "bearer"
+    user: Student
+
+
+class SetPasswordRequest(BaseModel):
+    current_password: str | None = None
+    new_password: str
