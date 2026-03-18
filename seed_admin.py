@@ -33,9 +33,9 @@ else:
     )
     db.add(admin)
     db.commit()
-    print(f"관리자 계정이 생성되었습니다.")
+    print("관리자 계정이 생성되었습니다.")
     print(f"  학번: {ADMIN_STUDENT_ID}")
     print(f"  비밀번호: {ADMIN_PASSWORD}")
-    print(f"  (로그인 후 비밀번호를 변경하세요)")
+    print("(로그인 후 비밀번호를 변경하세요)")
 
 db.close()
