@@ -4,7 +4,7 @@ import os
 from urllib.parse import quote_plus
 
 from sqlalchemy import JSON, Column, Date, ForeignKey, Integer, String, create_engine, inspect, text
-from sqlalchemy.orm import Session, declarative_base, sessionmaker
+from sqlalchemy.orm import declarative_base, sessionmaker
 
 
 def _build_database_url() -> str:
