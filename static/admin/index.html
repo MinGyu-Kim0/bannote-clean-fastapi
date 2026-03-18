@@ -1,0 +1,153 @@
+<!DOCTYPE html>
+<html lang="ko">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>관리자 - 청소 관리 시스템</title>
+  <link rel="stylesheet" href="/static/shared/styles.css">
+  <link rel="stylesheet" href="styles.css">
+</head>
+<body>
+  <div class="topbar">
+    <h1>청소 관리 시스템 - 관리자</h1>
+    <div class="topbar-right">
+      <span class="topbar-user" id="userInfo"></span>
+      <button class="btn-logout" onclick="logout()">로그아웃</button>
+    </div>
+  </div>
+
+  <div class="container">
+    <div id="alert" class="alert" style="display:none"></div>
+
+    <!-- 탭 네비게이션 -->
+    <div class="tabs">
+      <button class="tab active" data-tab="students">학생 관리</button>
+      <button class="tab" data-tab="areas">구역 관리</button>
+      <button class="tab" data-tab="schedules">일정 관리</button>
+      <button class="tab" data-tab="assignments">배정 관리</button>
+      <button class="tab" data-tab="trades">교환 관리</button>
+    </div>
+
+    <!-- 학생 관리 -->
+    <div class="tab-panel active" id="panel-students">
+      <div class="card">
+        <h2>학생 등록</h2>
+        <form id="addStudentForm" class="form-inline">
+          <div class="form-group"><label>학번</label><input name="student_id" required></div>
+          <div class="form-group"><label>이름</label><input name="name" required></div>
+          <div class="form-group"><label>학년</label><input name="grade" type="number" min="1" required></div>
+          <div class="form-group"><label>역할</label>
+            <select name="role"><option value="학생">학생</option><option value="관리자">관리자</option></select>
+          </div>
+          <button type="submit" class="btn btn-primary">등록</button>
+        </form>
+      </div>
+      <div class="card">
+        <h2>학생 목록</h2>
+        <div class="table-actions">
+          <input type="text" id="studentSearch" placeholder="학번 또는 이름 검색..." class="search-input">
+        </div>
+        <table><thead><tr>
+          <th>PK</th><th>학번</th><th>이름</th><th>학년</th><th>상태</th><th>역할</th><th>작업</th>
+        </tr></thead><tbody id="studentsTable"></tbody></table>
+      </div>
+    </div>
+
+    <!-- 구역 관리 -->
+    <div class="tab-panel" id="panel-areas">
+      <div class="card">
+        <h2>구역 등록</h2>
+        <form id="addAreaForm" class="form-inline">
+          <div class="form-group"><label>구역명</label><input name="name" required></div>
+          <div class="form-group"><label>필요 인원</label><input name="need_peoples" type="number" min="1" required></div>
+          <div class="form-group"><label>대상 학년 (쉼표 구분)</label><input name="target_grades" placeholder="1,2,3" required></div>
+          <button type="submit" class="btn btn-primary">등록</button>
+        </form>
+      </div>
+      <div class="card">
+        <h2>구역 목록</h2>
+        <table><thead><tr>
+          <th>ID</th><th>구역명</th><th>필요 인원</th><th>대상 학년</th><th>작업</th>
+        </tr></thead><tbody id="areasTable"></tbody></table>
+      </div>
+    </div>
+
+    <!-- 일정 관리 -->
+    <div class="tab-panel" id="panel-schedules">
+      <div class="card">
+        <h2>일정 생성 (금요일 자동 생성)</h2>
+        <form id="addScheduleForm" class="form-inline">
+          <div class="form-group"><label>시작일</label><input name="start_date" type="date" required></div>
+          <div class="form-group"><label>종료일</label><input name="end_date" type="date" required></div>
+          <button type="submit" class="btn btn-primary">생성</button>
+        </form>
+      </div>
+      <div class="card">
+        <h2>일정 목록</h2>
+        <table><thead><tr>
+          <th>ID</th><th>청소일</th><th>상태</th><th>작업</th>
+        </tr></thead><tbody id="schedulesTable"></tbody></table>
+      </div>
+    </div>
+
+    <!-- 배정 관리 -->
+    <div class="tab-panel" id="panel-assignments">
+      <div class="card">
+        <h2>배정 관리</h2>
+        <div class="btn-group">
+          <button class="btn btn-primary" id="autoAssignBtn">자동 배정 실행</button>
+          <select id="deleteScheduleSelect" style="margin-left:12px;padding:8px;border-radius:var(--radius);border:1px solid var(--border)">
+            <option value="">일정 선택...</option>
+          </select>
+          <button class="btn btn-danger" id="deleteAssignmentsBtn">선택 일정 배정 삭제</button>
+          <button class="btn btn-danger" id="deleteAllAssignmentsBtn" style="margin-left:8px">전체 배정 삭제</button>
+        </div>
+      </div>
+      <div class="card">
+        <h2>배정 목록</h2>
+        <div class="table-actions">
+          <select id="assignmentFilterSchedule" style="padding:8px;border-radius:var(--radius);border:1px solid var(--border)">
+            <option value="">전체 일정</option>
+          </select>
+        </div>
+        <table><thead><tr>
+          <th>ID</th><th>일정</th><th>학생</th><th>구역</th><th>상태</th><th>작업</th>
+        </tr></thead><tbody id="assignmentsTable"></tbody></table>
+      </div>
+    </div>
+
+    <!-- 교환 관리 -->
+    <div class="tab-panel" id="panel-trades">
+      <div class="card">
+        <h2>교환 요청 등록</h2>
+        <form id="addTradeForm" class="form-inline">
+          <div class="form-group"><label>신청 배정 ID</label><input name="requester_assignment_id" type="number" required></div>
+          <div class="form-group"><label>대상 배정 ID</label><input name="target_assignment_id" type="number" required></div>
+          <button type="submit" class="btn btn-primary">요청</button>
+        </form>
+      </div>
+      <div class="card">
+        <h2>교환 목록</h2>
+        <table><thead><tr>
+          <th>ID</th><th>신청 배정</th><th>대상 배정</th><th>상태</th><th>작업</th>
+        </tr></thead><tbody id="tradesTable"></tbody></table>
+      </div>
+    </div>
+  </div>
+
+  <!-- 수정 모달 -->
+  <div id="editModal" class="modal" style="display:none">
+    <div class="modal-content">
+      <h3 id="editModalTitle">수정</h3>
+      <form id="editForm"></form>
+      <div class="modal-actions">
+        <button class="btn btn-primary" id="editSubmitBtn">저장</button>
+        <button class="btn btn-outline" onclick="closeModal()">취소</button>
+      </div>
+    </div>
+  </div>
+
+  <script src="/static/shared/api.js"></script>
+  <script src="app.js"></script>
+</body>
+</html>

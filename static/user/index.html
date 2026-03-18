@@ -1,0 +1,77 @@
+<!DOCTYPE html>
+<html lang="ko">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>내 청소 배정 - 청소 관리 시스템</title>
+  <link rel="stylesheet" href="/static/shared/styles.css">
+  <link rel="stylesheet" href="styles.css">
+</head>
+<body>
+  <div class="topbar">
+    <h1>청소 관리 시스템</h1>
+    <div class="topbar-right">
+      <span class="topbar-user" id="userInfo"></span>
+      <button class="btn-logout" onclick="logout()">로그아웃</button>
+    </div>
+  </div>
+
+  <div class="container">
+    <div id="alert" class="alert" style="display:none"></div>
+
+    <!-- 내 배정표 -->
+    <div class="card">
+      <h2>내 청소 배정표</h2>
+      <table>
+        <thead><tr>
+          <th>배정 ID</th><th>청소일</th><th>구역</th><th>상태</th>
+        </tr></thead>
+        <tbody id="myAssignments"></tbody>
+      </table>
+    </div>
+
+    <!-- 교환 요청 -->
+    <div class="grid-2">
+      <div class="card">
+        <h2>교환 요청하기</h2>
+        <form id="tradeForm">
+          <div class="form-group">
+            <label>내 배정</label>
+            <select id="myAssignmentSelect" name="requester_assignment_id" required>
+              <option value="">배정 선택...</option>
+            </select>
+          </div>
+          <div class="form-group">
+            <label>교환 대상 배정 ID</label>
+            <input id="targetAssignmentId" name="target_assignment_id" type="number" required placeholder="아래 목록에서 선택하거나 직접 입력">
+          </div>
+          <button type="submit" class="btn btn-primary">교환 요청</button>
+        </form>
+      </div>
+
+      <div class="card">
+        <h2>교환 가능한 다른 일정 배정</h2>
+        <p class="help-text">같은 일정 배정은 제외하고, 다른 일정의 교환 가능 배정만 표시됩니다.</p>
+        <table>
+          <thead><tr><th>배정 ID</th><th>학생</th><th>청소일</th><th>구역</th><th>상태</th><th>선택</th></tr></thead>
+          <tbody id="peerAssignments"></tbody>
+        </table>
+      </div>
+    </div>
+
+    <!-- 내 교환 내역 -->
+    <div class="card">
+      <h2>내 교환 내역</h2>
+      <table>
+        <thead><tr>
+          <th>교환 ID</th><th>내 배정</th><th>상대 배정</th><th>방향</th><th>상태</th><th>작업</th>
+        </tr></thead>
+        <tbody id="myTrades"></tbody>
+      </table>
+    </div>
+  </div>
+
+  <script src="/static/shared/api.js"></script>
+  <script src="app.js"></script>
+</body>
+</html>

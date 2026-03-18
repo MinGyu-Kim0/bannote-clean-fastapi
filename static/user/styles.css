@@ -1,0 +1,8 @@
+.help-text {
+  color: var(--text-muted);
+  font-size: 13px;
+  margin-bottom: 12px;
+}
+
+.direction-sent { color: var(--primary); font-weight: 600; }
+.direction-received { color: var(--success); font-weight: 600; }
