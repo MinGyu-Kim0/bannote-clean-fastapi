@@ -76,6 +76,9 @@ def _validate_trade_pair(db: Session, requester_assignment_id: int, target_assig
     if requester_assignment.status == "취소" or target_assignment.status == "취소":
         raise HTTPException(status_code=400, detail="취소된 배정은 교환할 수 없습니다.")
 
+    if requester_assignment.schedule_id == target_assignment.schedule_id:
+        raise HTTPException(status_code=400, detail="같은 일정의 배정끼리는 교환할 수 없습니다.")
+
     _validate_no_duplicate_after_swap(db, requester_assignment, target_assignment)
 
     return requester_assignment, target_assignment

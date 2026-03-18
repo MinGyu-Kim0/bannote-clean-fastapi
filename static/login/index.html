@@ -1,0 +1,54 @@
+<!DOCTYPE html>
+<html lang="ko">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>로그인 - 청소 관리 시스템</title>
+  <link rel="stylesheet" href="/static/shared/styles.css">
+  <link rel="stylesheet" href="styles.css">
+</head>
+<body>
+  <div class="login-wrapper">
+    <div class="login-card">
+      <h1>청소 관리 시스템</h1>
+      <p class="subtitle">학번과 비밀번호를 입력하세요</p>
+
+      <div id="alert" class="alert" style="display:none"></div>
+
+      <!-- 로그인 폼 -->
+      <form id="loginForm">
+        <div class="form-group">
+          <label for="studentId">학번</label>
+          <input type="text" id="studentId" placeholder="학번 입력" required autofocus>
+        </div>
+        <div class="form-group">
+          <label for="password">비밀번호</label>
+          <input type="password" id="password" placeholder="비밀번호 입력" required>
+        </div>
+        <button type="submit" class="btn btn-primary btn-full">로그인</button>
+      </form>
+
+      <!-- 초기 비밀번호 설정 폼 (숨김) -->
+      <form id="setupForm" style="display:none">
+        <div class="form-group">
+          <label for="setupStudentId">학번</label>
+          <input type="text" id="setupStudentId" readonly>
+        </div>
+        <div class="form-group">
+          <label for="newPassword">새 비밀번호</label>
+          <input type="password" id="newPassword" placeholder="4자 이상" required minlength="4">
+        </div>
+        <div class="form-group">
+          <label for="confirmPassword">비밀번호 확인</label>
+          <input type="password" id="confirmPassword" placeholder="비밀번호 재입력" required minlength="4">
+        </div>
+        <button type="submit" class="btn btn-primary btn-full">비밀번호 설정 및 로그인</button>
+        <button type="button" class="btn btn-outline btn-full" onclick="showLogin()" style="margin-top:8px">뒤로</button>
+      </form>
+    </div>
+  </div>
+
+  <script src="/static/shared/api.js"></script>
+  <script src="app.js"></script>
+</body>
+</html>
