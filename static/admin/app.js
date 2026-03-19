@@ -221,10 +221,20 @@ document.getElementById("addAreaForm").addEventListener("submit", async (e) => {
 document.getElementById("addScheduleForm").addEventListener("submit", async (e) => {
   e.preventDefault();
   const fd = new FormData(e.target);
+  const weekdays = fd.getAll("weekdays")
+    .map((value) => Number(value))
+    .filter((value) => Number.isInteger(value));
+
+  if (!weekdays.length) {
+    showAlert("요일을 1개 이상 선택해주세요.");
+    return;
+  }
+
   try {
     await api("POST", "/schedules/", { query: {
       start_date: fd.get("start_date"),
       end_date: fd.get("end_date"),
+      weekdays,
     }});
     e.target.reset();
     showAlert("일정이 생성되었습니다.", "success");
@@ -264,6 +274,16 @@ document.getElementById("deleteAssignmentsBtn").addEventListener("click", async 
   try {
     await api("DELETE", "/assignments/", { query: { schedule_id: schId } });
     showAlert("배정이 삭제되었습니다.", "success");
+    await loadAll();
+  } catch (err) { showAlert(err.message); }
+});
+
+// 전체 일정 일괄 삭제
+document.getElementById("deleteAllSchedulesBtn").addEventListener("click", async () => {
+  if (!confirm("모든 일정을 삭제하시겠습니까? 관련 배정과 교환도 모두 삭제됩니다.")) return;
+  try {
+    await api("DELETE", "/schedules/");
+    showAlert("전체 일정이 삭제되었습니다.", "success");
     await loadAll();
   } catch (err) { showAlert(err.message); }
 });

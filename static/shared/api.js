@@ -39,6 +39,12 @@ async function api(method, path, { query, body } = {}) {
   if (query) {
     const params = new URLSearchParams();
     for (const [k, v] of Object.entries(query)) {
+      if (Array.isArray(v)) {
+        for (const item of v) {
+          if (item !== null && item !== undefined && item !== "") params.append(k, item);
+        }
+        continue;
+      }
       if (v !== null && v !== undefined && v !== "") params.append(k, v);
     }
     const qs = params.toString();

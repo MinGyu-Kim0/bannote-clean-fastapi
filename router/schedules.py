@@ -31,10 +31,16 @@ def get_schedules(
 def add_schedule(
     start_date: date,
     end_date: date,
+    weekdays: list[int] = Query(..., description="0=월요일, 1=화요일, 2=수요일, 3=목요일, 4=금요일"),
     db: Session = Depends(get_db),
     _: Student = Depends(require_admin),
 ):
-    return schedules_service.add_schedule(db=db, start_date=start_date, end_date=end_date)
+    return schedules_service.add_schedule(
+        db=db,
+        start_date=start_date,
+        end_date=end_date,
+        weekdays=weekdays,
+    )
 
 
 @router.patch("/{schedule_id}")
@@ -45,6 +51,14 @@ def update_schedule(
     _: Student = Depends(require_admin),
 ):
     return schedules_service.update_schedule(db=db, schedule_id=schedule_id, update_data=update_data)
+
+
+@router.delete("/")
+def delete_all_schedules(
+    db: Session = Depends(get_db),
+    _: Student = Depends(require_admin),
+):
+    return schedules_service.delete_all_schedules(db=db)
 
 
 @router.delete("/{schedule_id}")
