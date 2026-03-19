@@ -19,20 +19,6 @@ function hideAlert() {
   alertEl.style.display = "none";
 }
 
-function showLogin() {
-  document.getElementById("loginForm").style.display = "";
-  document.getElementById("setupForm").style.display = "none";
-  hideAlert();
-}
-
-function showSetup(studentId) {
-  document.getElementById("loginForm").style.display = "none";
-  document.getElementById("setupForm").style.display = "";
-  document.getElementById("setupStudentId").value = studentId;
-  document.getElementById("newPassword").focus();
-}
-
-// 로그인 폼
 document.getElementById("loginForm").addEventListener("submit", async (e) => {
   e.preventDefault();
   hideAlert();
@@ -49,36 +35,9 @@ document.getElementById("loginForm").addEventListener("submit", async (e) => {
     window.location.href = data.user.role === "관리자" ? "/admin" : "/user";
   } catch (err) {
     if (err.message.includes("비밀번호가 설정되지 않았습니다")) {
-      showSetup(studentId);
-      showAlert("초기 비밀번호를 설정해주세요.", "info");
+      showAlert("비밀번호가 설정되지 않은 계정입니다. 비밀번호 설정 후 로그인해주세요.");
     } else {
       showAlert(err.message);
     }
-  }
-});
-
-// 비밀번호 설정 폼
-document.getElementById("setupForm").addEventListener("submit", async (e) => {
-  e.preventDefault();
-  hideAlert();
-
-  const studentId = document.getElementById("setupStudentId").value;
-  const newPw = document.getElementById("newPassword").value;
-  const confirmPw = document.getElementById("confirmPassword").value;
-
-  if (newPw !== confirmPw) {
-    showAlert("비밀번호가 일치하지 않습니다.");
-    return;
-  }
-
-  try {
-    const data = await api("POST", "/auth/setup-password", {
-      body: { student_id: studentId, password: newPw },
-    });
-    setToken(data.access_token);
-    setStoredUser(data.user);
-    window.location.href = data.user.role === "관리자" ? "/admin" : "/user";
-  } catch (err) {
-    showAlert(err.message);
   }
 });
