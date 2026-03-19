@@ -19,12 +19,16 @@ function hideAlert() {
   alertEl.style.display = "none";
 }
 
-document.getElementById("loginForm").addEventListener("submit", async (e) => {
-  e.preventDefault();
+async function doLogin() {
   hideAlert();
 
   const studentId = document.getElementById("studentId").value.trim();
   const password = document.getElementById("password").value;
+
+  if (!studentId || !password) {
+    showAlert("학번과 비밀번호를 입력해주세요.");
+    return;
+  }
 
   try {
     const data = await api("POST", "/auth/login", {
@@ -40,4 +44,10 @@ document.getElementById("loginForm").addEventListener("submit", async (e) => {
       showAlert(err.message);
     }
   }
+}
+
+document.getElementById("loginBtn").addEventListener("click", doLogin);
+
+document.addEventListener("keydown", (e) => {
+  if (e.key === "Enter") doLogin();
 });

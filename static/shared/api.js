@@ -64,8 +64,19 @@ async function api(method, path, { query, body } = {}) {
   const res = await fetch(url, opts);
 
   if (res.status === 401) {
-    logout();
-    return null;
+    localStorage.removeItem("access_token");
+    localStorage.removeItem("user");
+
+    const onAuthPage =
+      window.location.pathname.startsWith("/login") ||
+      window.location.pathname.startsWith("/signup");
+
+    if (!onAuthPage) {
+      window.location.href = "/login";
+    }
+
+    const payload = await res.json().catch(() => null);
+    throw new Error(payload?.detail || "인증이 필요합니다.");
   }
 
   const payload = await res.json().catch(() => null);

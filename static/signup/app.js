@@ -31,16 +31,23 @@ function hideAlert() {
   alertEl.style.display = "none";
 }
 
-document.getElementById("signupForm").addEventListener("submit", async (e) => {
-  e.preventDefault();
+async function doSignup() {
   hideAlert();
 
   const studentId = document.getElementById("studentId").value.trim();
   const newPw = document.getElementById("newPassword").value;
   const confirmPw = document.getElementById("confirmPassword").value;
 
+  if (!studentId) {
+    showAlert("학번을 입력해주세요.");
+    return;
+  }
   if (newPw !== confirmPw) {
     showAlert("비밀번호가 일치하지 않습니다.");
+    return;
+  }
+  if (newPw.length < 4) {
+    showAlert("비밀번호는 4자 이상이어야 합니다.");
     return;
   }
 
@@ -58,4 +65,10 @@ document.getElementById("signupForm").addEventListener("submit", async (e) => {
       showAlert(err.message);
     }
   }
+}
+
+document.getElementById("signupBtn").addEventListener("click", doSignup);
+
+document.addEventListener("keydown", (e) => {
+  if (e.key === "Enter") doSignup();
 });
