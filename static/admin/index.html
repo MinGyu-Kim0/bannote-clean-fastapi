@@ -75,15 +75,28 @@
     <!-- 일정 관리 -->
     <div class="tab-panel" id="panel-schedules">
       <div class="card">
-        <h2>일정 생성 (금요일 자동 생성)</h2>
+        <h2>일정 생성</h2>
         <form id="addScheduleForm" class="form-inline">
           <div class="form-group"><label>시작일</label><input name="start_date" type="date" required></div>
           <div class="form-group"><label>종료일</label><input name="end_date" type="date" required></div>
+          <div class="form-group form-group-weekdays">
+            <label>요일 선택</label>
+            <div class="weekday-options">
+              <label class="weekday-option"><input type="checkbox" name="weekdays" value="0">월</label>
+              <label class="weekday-option"><input type="checkbox" name="weekdays" value="1">화</label>
+              <label class="weekday-option"><input type="checkbox" name="weekdays" value="2">수</label>
+              <label class="weekday-option"><input type="checkbox" name="weekdays" value="3">목</label>
+              <label class="weekday-option"><input type="checkbox" name="weekdays" value="4" checked>금</label>
+            </div>
+          </div>
           <button type="submit" class="btn btn-primary">생성</button>
         </form>
       </div>
       <div class="card">
         <h2>일정 목록</h2>
+        <div class="table-actions">
+          <button class="btn btn-danger" id="deleteAllSchedulesBtn">전체 일정 삭제</button>
+        </div>
         <table><thead><tr>
           <th>ID</th><th>청소일</th><th>상태</th><th>작업</th>
         </tr></thead><tbody id="schedulesTable"></tbody></table>
