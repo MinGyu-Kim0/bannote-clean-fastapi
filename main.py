@@ -39,6 +39,7 @@ app.include_router(trades.router)
 # 정적 파일 마운트
 app.mount("/static/shared", StaticFiles(directory="static/shared"), name="shared")
 app.mount("/login", StaticFiles(directory="static/login", html=True), name="login")
+app.mount("/signup", StaticFiles(directory="static/signup", html=True), name="signup")
 app.mount("/admin", StaticFiles(directory="static/admin", html=True), name="admin")
 app.mount("/user", StaticFiles(directory="static/user", html=True), name="user")
 app.mount("/ui", StaticFiles(directory="test", html=True), name="ui")
