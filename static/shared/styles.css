@@ -183,6 +183,13 @@ tr:hover { background: #f8fafc; }
   color: var(--text-muted);
 }
 
+.back-link {
+  font-size: 13px;
+  color: var(--primary);
+  text-decoration: none;
+}
+.back-link:hover { text-decoration: underline; }
+
 @media (max-width: 768px) {
   .grid-2, .grid-3 { grid-template-columns: 1fr; }
   .container { padding: 16px; }
