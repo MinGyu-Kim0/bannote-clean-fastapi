@@ -21,7 +21,11 @@ jobs:
   build:
     runs-on: ubuntu-latest
     env:
-      DATABASE_URL: sqlite:///./docs.sqlite3
+      DB_HOST: ${{ secrets.AWS_DB_HOST }}
+      DB_USER: ${{ secrets.AWS_DB_USER }}
+      DB_PASSWORD: ${{ secrets.AWS_DB_PASSWORD }}
+      DB_NAME: ${{ secrets.AWS_DB_NAME }}
+      DB_PORT: "3306"
 
     steps:
       - name: Checkout repository
@@ -34,6 +38,22 @@ jobs:
         uses: actions/setup-python@v5
         with:
           python-version: "3.14"
+
+      - name: Validate AWS DB secrets
+        shell: bash
+        run: |
+          missing=()
+          for key in DB_HOST DB_USER DB_PASSWORD DB_NAME; do
+            if [ -z "${!key}" ]; then
+              missing+=("$key")
+            fi
+          done
+
+          if [ ${#missing[@]} -gt 0 ]; then
+            echo "Missing required GitHub secrets mapped to workflow env: ${missing[*]}" >&2
+            echo "Please add AWS_DB_HOST, AWS_DB_USER, AWS_DB_PASSWORD, and AWS_DB_NAME." >&2
+            exit 1
+          fi
 
       - name: Install dependencies
         shell: bash
@@ -53,6 +73,27 @@ jobs:
           print(f"wrote {len(lines)} requirement lines")
           PY
           pip install -r requirements.ci.txt
+
+      - name: Verify AWS DB connection
+        shell: bash
+        run: |
+          python - <<'PY'
+          import os
+          import pymysql
+
+          connection = pymysql.connect(
+              host=os.environ["DB_HOST"],
+              user=os.environ["DB_USER"],
+              password=os.environ["DB_PASSWORD"],
+              database=os.environ["DB_NAME"],
+              port=int(os.environ.get("DB_PORT") or 3306),
+              charset="utf8mb4",
+          )
+          with connection.cursor() as cursor:
+              cursor.execute("SELECT 1")
+              print("AWS DB connection OK:", cursor.fetchone())
+          connection.close()
+          PY
 
       - name: Generate static Swagger UI
         shell: bash
