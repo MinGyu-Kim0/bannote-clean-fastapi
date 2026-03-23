@@ -36,6 +36,10 @@
 }
 .form-inline .form-group { flex: 1; min-width: 120px; }
 .form-inline .form-group-weekdays { flex: 1 1 100%; }
+.form-inline > .btn {
+  align-self: flex-start;
+  margin-top: 22px;
+}
 
 .weekday-options {
   display: flex;
